@@ -1,0 +1,125 @@
+import { cn } from '@/lib/cn'
+import { tonePill } from '@/lib/tone'
+import { recipientStatusLabels } from '@/lib/status-labels'
+import type {
+  CareLevel,
+  Priority,
+  RecipientStatus,
+  Severity,
+  Tone,
+  VisitStatus,
+} from '@/types'
+
+const base =
+  'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap'
+
+/* --------------------------------- visits --------------------------------- */
+
+const visitStatusTone: Record<VisitStatus, Tone> = {
+  completed: 'green',
+  'in-progress': 'blue',
+  'starting-soon': 'amber',
+  unassigned: 'red',
+  upcoming: 'slate',
+  'late-arrival': 'amber',
+  cancelled: 'red',
+}
+
+const visitStatusLabels: Record<VisitStatus, string> = {
+  completed: 'Completed',
+  'in-progress': 'In Progress',
+  'starting-soon': 'Starting Soon',
+  unassigned: 'Unassigned',
+  upcoming: 'Upcoming',
+  'late-arrival': 'Late Arrival',
+  cancelled: 'Cancelled',
+}
+
+export function VisitStatusBadge({ status }: { status: VisitStatus }) {
+  return (
+    <span className={cn(base, tonePill[visitStatusTone[status]])}>
+      {visitStatusLabels[status]}
+    </span>
+  )
+}
+
+/* -------------------------------- recipients ------------------------------- */
+
+const recipientStatusTone: Record<RecipientStatus, Tone> = {
+  active: 'green',
+  'on-hold': 'amber',
+  new: 'blue',
+  discharged: 'slate',
+}
+
+export function RecipientStatusBadge({ status }: { status: RecipientStatus }) {
+  return (
+    <span className={cn(base, tonePill[recipientStatusTone[status]])}>
+      {recipientStatusLabels[status]}
+    </span>
+  )
+}
+
+/* -------------------------------- severity -------------------------------- */
+
+const severityStyles: Record<Severity, string> = {
+  critical: 'bg-red-100 text-red-700',
+  high: 'bg-red-50 text-red-600',
+  medium: 'bg-amber-50 text-amber-700',
+}
+
+export function SeverityBadge({ severity }: { severity: Severity }) {
+  return (
+    <span className={cn(base, 'capitalize', severityStyles[severity])}>
+      {severity}
+    </span>
+  )
+}
+
+/* -------------------------------- priority -------------------------------- */
+
+const priorityTone: Record<Priority, Tone> = {
+  critical: 'red',
+  urgent: 'red',
+  high: 'rose',
+  medium: 'amber',
+  normal: 'slate',
+  low: 'blue',
+}
+
+/** Pill form — used in dense directory tables. */
+export function PriorityBadge({ priority }: { priority: Priority }) {
+  return (
+    <span className={cn(base, 'capitalize', tonePill[priorityTone[priority]])}>
+      {priority}
+    </span>
+  )
+}
+
+const priorityTextStyles: Record<Priority, string> = {
+  critical: 'text-red-700 font-semibold',
+  urgent: 'text-red-600 font-medium',
+  high: 'text-rose-600 font-medium',
+  medium: 'text-amber-700 font-medium',
+  normal: 'text-ink-muted',
+  low: 'text-ink-subtle',
+}
+
+/** Plain-text form — used where a pill would add too much colour. */
+export function PriorityLabel({ priority }: { priority: Priority }) {
+  return (
+    <span className={cn('text-sm capitalize', priorityTextStyles[priority])}>
+      {priority}
+    </span>
+  )
+}
+
+/* ------------------------------- care level ------------------------------- */
+
+export function CareLevelTag({ level }: { level: CareLevel }) {
+  return (
+    <span className="bg-sunken text-ink-muted inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap">
+      {level}
+    </span>
+  )
+}

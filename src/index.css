@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Brand — CareProfs indigo */
+  --color-brand-50: oklch(0.97 0.014 285);
+  --color-brand-100: oklch(0.94 0.03 285);
+  --color-brand-200: oklch(0.89 0.055 285);
+  --color-brand-300: oklch(0.81 0.09 285);
+  --color-brand-400: oklch(0.7 0.14 285);
+  --color-brand-500: oklch(0.62 0.19 285);
+  --color-brand-600: oklch(0.55 0.23 285);
+  --color-brand-700: oklch(0.49 0.22 285);
+  --color-brand-800: oklch(0.42 0.19 285);
+  --color-brand-900: oklch(0.36 0.15 285);
+
+  /* Surfaces */
+  --color-surface: oklch(1 0 0);
+  --color-canvas: oklch(0.985 0.001 285);
+  --color-sunken: oklch(0.968 0.002 285);
+  --color-line: oklch(0.925 0.003 285);
+
+  /* Text */
+  /* Contrast-checked against --color-canvas (the worst case, since rows hover
+     to it): ink 16.4:1, muted 5.2:1, subtle 4.5:1. Do not lighten `subtle` —
+     it carries real content, not just decoration. */
+  --color-ink: oklch(0.22 0.01 285);
+  --color-ink-muted: oklch(0.52 0.012 285);
+  --color-ink-subtle: oklch(0.55 0.012 285);
+
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-card: 0.875rem;
+
+  /* Single source of truth for the sidebar: `w-sidebar` on the panel,
+     `lg:pl-sidebar` on the content offset. */
+  --spacing-sidebar: 16rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+
+  /* Numeric columns stay aligned as values change */
+  th,
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border-line rounded-card border;
+  }
+
+  /* Horizontal pill rails on narrow screens */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Visible only once focused, for the skip link */
+  .skip-link {
+    @apply bg-brand-600 sr-only rounded-lg px-4 py-2 text-sm font-medium text-white;
+    @apply focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
