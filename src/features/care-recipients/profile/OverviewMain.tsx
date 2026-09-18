@@ -91,17 +91,20 @@ export function RecentVisitsPanel({ profile }: { profile: RecipientProfile }) {
             tabIndex={0}
             role="region"
             aria-label="Recent visits"
-            className="hidden overflow-x-auto sm:block"
+            // Padded, so the header band and the row rules stop where the
+            // card's content stops rather than running edge to edge.
+            className="hidden overflow-x-auto px-4 sm:block"
           >
             <table className="w-full min-w-xl text-left text-sm">
-              <thead className="border-line bg-sunken text-ink-muted border-y text-xs">
+              {/* No rule above the band — the fill is already the edge. */}
+              <thead className="border-line bg-sunken text-ink-muted border-b text-xs">
                 <tr>
                   {['Date', 'Caregiver', 'Type', 'Duration', 'Status'].map(
                     (col) => (
                       <th
                         key={col}
                         scope="col"
-                        className="px-4 py-2.5 font-semibold tracking-wide uppercase"
+                        className="py-2.5 pr-4 font-semibold tracking-wide uppercase"
                       >
                         {col}
                       </th>
@@ -112,18 +115,20 @@ export function RecentVisitsPanel({ profile }: { profile: RecipientProfile }) {
               <tbody className="divide-line divide-y">
                 {visits.map((v) => (
                   <tr key={v.id}>
+                    {/* Who came and when is what the row is scanned for; the
+                        type and the length of the visit are its detail. */}
                     <th
                       scope="row"
-                      className="text-ink-muted px-4 py-3 font-normal whitespace-nowrap"
+                      className="text-ink py-3 pr-4 font-normal whitespace-nowrap"
                     >
                       {v.date}
                     </th>
-                    <td className="text-ink-muted px-4 py-3">{v.caregiver}</td>
-                    <td className="text-ink-muted px-4 py-3">{v.type}</td>
-                    <td className="text-ink-muted px-4 py-3 whitespace-nowrap">
+                    <td className="text-ink py-3 pr-4">{v.caregiver}</td>
+                    <td className="text-ink-muted py-3 pr-4">{v.type}</td>
+                    <td className="text-ink-muted py-3 pr-4 whitespace-nowrap">
                       {v.duration}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="py-3">
                       <VisitStatusBadge status={v.status} />
                     </td>
                   </tr>

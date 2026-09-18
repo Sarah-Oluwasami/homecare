@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
-import { CalendarPlus, Plus, SquarePen, TriangleAlert } from 'lucide-react'
+import { Plus, TriangleAlert } from 'lucide-react'
 import {
   ROSTER_PAGE_SIZE,
   age,
@@ -8,7 +8,6 @@ import {
   complianceFor,
   complianceLabels,
   complianceTones,
-  emailFor,
   experienceYears,
   expiredCount,
   formatMonth,
@@ -35,6 +34,7 @@ import { Panel } from '@/components/ui/Panel'
 import { Pagination } from '@/components/ui/Pagination'
 import { SelectFilter } from '@/components/ui/SelectFilter'
 import { Avatar } from '@/components/ui/Avatar'
+import { DropdownMenu } from '@/components/ui/DropdownMenu'
 import { tonePill } from '@/lib/tone'
 import { cn } from '@/lib/cn'
 
@@ -337,49 +337,89 @@ function StaffProfile({
         <span aria-hidden="true">←</span> Back to the roster
       </Link>
 
-      <div className="card p-4 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-4">
-            <Avatar name={member.name} decorative className="size-14 shrink-0 text-lg" />
+      <div className="card px-4 pt-5 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-5">
+            <Avatar
+              name={member.name}
+              decorative
+              className="size-16 shrink-0 text-2xl"
+            />
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-ink text-2xl font-bold tracking-tight break-words">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="text-ink text-xl font-bold tracking-tight break-words">
                   {member.name}
                 </h1>
                 <span className="text-ink-subtle text-sm">{member.ref}</span>
-                <span className={cn(chip, tonePill[statusTones[member.status]])}>
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
+                    tonePill[statusTones[member.status]],
+                  )}
+                >
                   {statusLabels[member.status]}
                 </span>
               </div>
-              <p className="text-ink-muted mt-1 text-sm break-words">{member.title}</p>
-              <p className="text-ink-subtle mt-0.5 text-sm break-words">
-                {/* Experience is tenure plus what they brought with them, and
-                    tenure comes from the hire date rather than a second stored
-                    number that could disagree with it. */}
-                {experienceYears(member)} years experience · {member.branch} ·{' '}
-                {member.employment} · joined {formatMonth(member.hiredAt)} ·{' '}
-                {emailFor(member)}
+              <p className="text-ink mt-1 text-sm break-words">{member.title}</p>
+              {/* Experience is tenure plus what they brought with them, and
+                  tenure comes from the hire date rather than a second stored
+                  number that could disagree with it. */}
+              <p className="text-ink-subtle mt-1 flex flex-wrap items-center gap-x-2 text-xs">
+                {[
+                  `${experienceYears(member)} years experience`,
+                  member.branch,
+                  member.employment,
+                  `Joined ${formatMonth(member.hiredAt)}`,
+                ].map((part, i) => (
+                  <span key={part} className="inline-flex items-center gap-2">
+                    {i > 0 && <span aria-hidden="true">•</span>}
+                    {part}
+                  </span>
+                ))}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Link
               to={`/caregivers/${member.id}/edit`}
-              className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+              className="border-control text-ink hover:bg-sunken inline-flex h-9 items-center rounded-lg border px-4 text-sm font-medium"
             >
-              <SquarePen className="size-4" strokeWidth={1.9} aria-hidden="true" />
-              Edit profile
+              Edit Profile
               <span className="sr-only"> for {member.name}</span>
             </Link>
-            <button
-              type="button"
-              className="bg-brand-600 hover:bg-brand-700 inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
-            >
-              <CalendarPlus className="size-4" strokeWidth={1.9} aria-hidden="true" />
-              Assign visit
-              <span className="sr-only"> to {member.name}</span>
-            </button>
+            {/* The primary action follows the tab: the Figma puts Upload
+                Document on Documents and Assign Visit everywhere else. */}
+            {tab === 'documents' ? (
+              <button
+                type="button"
+                className="bg-brand-600 hover:bg-brand-700 inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
+              >
+                <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
+                Upload Document
+                <span className="sr-only"> for {member.name}</span>
+              </button>
+            ) : (
+              // Assigning needs a visit, so this opens the queue of visits
+              // that need a caregiver.
+              <Link
+                to="/scheduling?view=unassigned"
+                className="bg-brand-600 hover:bg-brand-700 inline-flex h-9 items-center rounded-lg px-4 text-sm font-medium text-white"
+              >
+                Assign Visit
+                <span className="sr-only"> to {member.name}</span>
+              </Link>
+            )}
+            <span className="border-control inline-flex rounded-lg border">
+              <DropdownMenu
+                label={`More actions for ${member.name}`}
+                items={[
+                  { id: 'schedule', label: 'View schedule', to: `/caregivers/${member.id}/schedule${suffix}` },
+                  { id: 'documents', label: 'View documents', to: `/caregivers/${member.id}/documents${suffix}` },
+                  { id: 'roster', label: 'Back to the roster', to: `/caregivers${suffix}` },
+                ]}
+              />
+            </span>
           </div>
         </div>
 
@@ -407,7 +447,7 @@ function StaffProfile({
 
         <nav
           aria-label={`${member.name} record`}
-          className="border-line no-scrollbar -mx-4 mt-4 flex gap-1 overflow-x-auto border-b px-2 sm:-mx-6 sm:px-4"
+          className="no-scrollbar -mx-4 mt-4 flex gap-1 overflow-x-auto px-1 sm:-mx-6 sm:px-3"
         >
           {tabs.map((t) => {
             const selected = t.slug === tab
@@ -420,7 +460,7 @@ function StaffProfile({
                   'inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors',
                   selected
                     ? 'border-brand-600 text-brand-700'
-                    : 'text-ink-muted hover:text-ink border-transparent',
+                    : 'text-ink hover:text-brand-700 border-transparent',
                 )}
               >
                 {t.label}

@@ -81,7 +81,7 @@ export function TaskSettingsPage() {
           <button
             type="button"
             onClick={resetTaskSettings}
-            className="border-line text-ink hover:bg-sunken inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
             <RotateCcw
               className="size-4 shrink-0"
@@ -401,7 +401,7 @@ function NewCategory({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           onClick={onDone}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
         >
           Cancel
         </button>

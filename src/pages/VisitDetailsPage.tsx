@@ -1,18 +1,18 @@
 import { useMemo } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  ArrowRight,
   CalendarClock,
+  ChevronRight,
+  Circle,
+  CircleCheck,
   Check,
-  CircleDot,
   FileText,
   LogIn,
   LogOut,
-  MessageSquare,
   Pill,
-  SquarePen,
+  Plus,
   TriangleAlert,
-  UserPlus,
-  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -24,7 +24,6 @@ import {
   describeDeparture,
   detailFor,
   formatFullDay,
-  formatSpan,
   formatTime,
   historyFor,
   taskProgress,
@@ -50,8 +49,6 @@ import type { CareNoteEntry } from '@/features/care-recipients/notes-data'
 import type { DoseState } from '@/features/care-recipients/medications-data'
 import {
   boardOn,
-  conflictLabels,
-  conflictTones,
   isUnlogged,
 } from '@/features/scheduling/board-data'
 import type { BoardVisit } from '@/features/scheduling/board-data'
@@ -60,6 +57,7 @@ import {
   complianceFor,
   credentialStates,
   minutesOfDay,
+  performanceFor,
 } from '@/features/caregivers/roster-data'
 import {
   goalBarFill,
@@ -78,22 +76,24 @@ import {
 import { Panel } from '@/components/ui/Panel'
 import { Avatar } from '@/components/ui/Avatar'
 import { PriorityBadge, VisitStatusBadge } from '@/components/ui/StatusBadge'
-import { recipientStatusLabels } from '@/lib/status-labels'
 import { tonePill } from '@/lib/tone'
 import { cn } from '@/lib/cn'
 
 const tabs = [
+  // The Figma's six, in its order.
   { slug: 'overview', label: 'Overview' },
-  { slug: 'tasks', label: 'Care tasks' },
-  { slug: 'timeline', label: 'Timeline' },
-  { slug: 'location', label: 'Location & check-in' },
   { slug: 'recipient', label: 'Recipient' },
   { slug: 'caregiver', label: 'Caregiver' },
-  { slug: 'care-plan', label: 'Care plan' },
+  { slug: 'care-plan', label: 'Care Plan' },
   { slug: 'notes', label: 'Notes' },
-  // Not "History" — for a visit in the future the list also holds occurrences
-  // between now and then.
-  { slug: 'history', label: 'Occurrences' },
+  // The tab splits runs already made from ones still to come, so "History"
+  // does not pass a future occurrence off as a finished one.
+  { slug: 'history', label: 'History' },
+  // Not in the Figma's tab row, so not shown there. They stay routable: the
+  // Overview's task and timeline cards link through to the first two.
+  { slug: 'tasks', label: 'Care Tasks', hidden: true },
+  { slug: 'timeline', label: 'Timeline', hidden: true },
+  { slug: 'location', label: 'Location & Check-in', hidden: true },
 ] as const
 
 type TabSlug = (typeof tabs)[number]['slug']
@@ -126,88 +126,62 @@ export function VisitDetailsPage() {
     visit.status !== 'completed' &&
     visit.status !== 'cancelled'
 
+  const secondaryBtn =
+    'border-control text-ink hover:bg-sunken inline-flex h-10 items-center rounded-lg border px-4 text-sm font-medium aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent'
+
   return (
     <div className="space-y-6">
-      <nav aria-label="Breadcrumb">
-        <ol className="text-ink-subtle flex flex-wrap items-center gap-1.5 text-sm">
-          <li>
-            <Link to="/scheduling" className="hover:text-ink">
-              Scheduling
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li>
-            <Link to={`/scheduling?date=${visit.date}`} className="hover:text-ink">
-              {formatFullDay(visit.date)}
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li className="text-ink font-medium" aria-current="page">
-            Visit details
-          </li>
-        </ol>
-      </nav>
+      <div className="card p-4 sm:px-7 sm:py-6">
+        <nav aria-label="Breadcrumb">
+          <ol className="text-ink-muted flex flex-wrap items-center gap-1.5 text-[0.8125rem]">
+            <li>
+              <Link to="/scheduling" className="hover:text-ink">
+                Scheduling
+              </Link>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="text-ink-muted size-3.5" strokeWidth={2.4} />
+            </li>
+            <li>
+              {/* "Today's Schedule" only when it is; otherwise the day it is on. */}
+              <Link to={`/scheduling?date=${visit.date}`} className="hover:text-ink">
+                {visit.date === TODAY ? 'Today’s Schedule' : formatFullDay(visit.date)}
+              </Link>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="text-ink-muted size-3.5" strokeWidth={2.4} />
+            </li>
+            <li className="text-brand-700 font-medium" aria-current="page">
+              Visit Details
+            </li>
+          </ol>
+        </nav>
 
-      <div className="card p-4 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-ink text-2xl font-bold tracking-tight">
-                Visit details
-              </h1>
-              {isUnlogged(visit) ? (
-                <NotWrittenUp />
-              ) : (
-                <>
-                  <VisitStatusBadge status={visit.status} />
-                  {/* A backstop, not the main guard: `isUnlogged` above
-                      already catches every case the fixture can produce, since
-                      an unlogged visit only reads "completed" once its window
-                      has passed. It stays so a future status source cannot put
-                      a green Completed badge over an empty timeline. */}
-                  {visit.status === 'completed' && !visit.logged && <NotWrittenUp />}
-                </>
-              )}
-              <PriorityBadge priority={visit.priority} />
-            </div>
-            <p className="text-ink-muted mt-1 text-sm break-words">
-              {context.reference} · {visit.type} for {visit.recipientName} ·{' '}
-              {formatFullDay(visit.date)}
-            </p>
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="text-ink text-2xl font-bold tracking-tight">Visit Details</h1>
+            <HeaderStatus visit={visit} large />
           </div>
 
           {/* aria-disabled, not disabled: the buttons stay focusable and
-              announce their state. None of them is wired up in the sample. */}
+              announce their state. Edit and Cancel are not wired up yet. */}
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              aria-disabled="true"
-              className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
-            >
-              <SquarePen className="size-4" strokeWidth={1.9} aria-hidden="true" />
-              Edit visit
+            <button type="button" aria-disabled="true" className={secondaryBtn}>
+              Edit Visit
             </button>
-            {/* Gated the same way Cancel is — a visit that is over cannot
-                change hands. */}
+            {/* A visit that is over cannot change hands. */}
             {bookable && (
-              <Link
-                to={`/scheduling/visits/${visit.id}/assign`}
-                className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
-              >
-                <UserPlus className="size-4" strokeWidth={1.9} aria-hidden="true" />
-                {visit.caregiverId ? 'Reassign' : 'Assign'}
+              <Link to={`/scheduling/visits/${visit.id}/assign`} className={secondaryBtn}>
+                {visit.caregiverId ? 'Reassign Caregiver' : 'Assign Caregiver'}
               </Link>
             )}
-            {/* Cancelling a visit that already happened is not a thing, so the
-                control is only offered while it still can be. */}
             {bookable && (
               <button
                 type="button"
                 aria-disabled="true"
-                className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-medium text-red-700 hover:bg-red-100 aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-red-50"
+                className="inline-flex h-10 items-center rounded-lg border border-red-600 px-4 text-sm font-medium text-red-700 hover:bg-red-50 aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
               >
-                <X className="size-4" strokeWidth={2.2} aria-hidden="true" />
-                Cancel visit
+                Cancel Visit
               </button>
             )}
           </div>
@@ -215,22 +189,14 @@ export function VisitDetailsPage() {
 
         {!visit.caregiverId && (
           <p className="mt-4 flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            <TriangleAlert
-              className="mt-0.5 size-4 shrink-0"
-              strokeWidth={2.2}
-              aria-hidden="true"
-            />
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={2.2} aria-hidden="true" />
             <span>Nobody is on this visit. {context.unassignedReason}</span>
           </p>
         )}
 
         {visit.outsideAvailability && visit.caregiverId && (
           <p className="mt-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <TriangleAlert
-              className="mt-0.5 size-4 shrink-0"
-              strokeWidth={2.2}
-              aria-hidden="true"
-            />
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={2.2} aria-hidden="true" />
             <span>
               This shift falls outside the availability {visit.caregiverName} has
               set for {visit.day}.
@@ -238,127 +204,31 @@ export function VisitDetailsPage() {
           </p>
         )}
 
-        {/* The board's conflicts for this row, restated nowhere — read from
-            the same `conflictsOn` the Conflicts view uses. */}
-        {context.conflicts.length > 0 && (
-          <ul className="mt-4 space-y-2">
-            {context.conflicts.map((conflict) => (
-              <li key={conflict.id} className="border-line rounded-lg border p-3 text-sm">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                      tonePill[conflictTones[conflict.kind]],
-                    )}
-                  >
-                    {conflictLabels[conflict.kind]}
-                  </span>
-                  <span className="text-ink min-w-0 font-medium break-words">
-                    {conflict.label}
-                  </span>
-                </div>
-                <p className="text-ink-muted mt-1 break-words">{conflict.detail}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Only while it is actually happening. Elapsed runs from the recorded
-            clock-in; the bar is the share of the *window*, not the task
-            fraction — the source design labelled a bar with the check-in and
-            checkout times and then filled it to "67%", which was 4 of 6
-            tasks. */}
-        {context.progress.underway && (
-          <dl className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <LiveTile
-              // Not "Elapsed" without a check-in: that would be a presence
-              // claim about somebody the app has no evidence arrived.
-              label={context.progress.clockIn ? 'Elapsed' : 'Since due to start'}
-              value={formatSpan(context.progress.elapsed ?? 0)}
-              hint={
-                context.progress.clockIn
-                  ? `Checked in ${formatTime(context.progress.clockIn)}`
-                  : 'No check-in recorded'
-              }
-            />
-            <LiveTile
-              label="Remaining"
-              value={formatSpan(context.progress.remaining ?? 0)}
-              hint={`Scheduled to finish ${formatTime(context.progress.estimatedEnd)}`}
-            />
-            <LiveTile
-              label="Care tasks"
-              value={`${taskProgress(context.tasks).done} of ${taskProgress(context.tasks).total}`}
-              hint="Read off the clock — nothing records a task being ticked"
-            />
-            <LiveTile
-              label="Visit record"
-              value={visit.logged ? 'On file' : 'None filed'}
-              hint={
-                visit.logged
-                  ? 'The only evidence of attendance this app holds'
-                  : 'No record, so nothing confirms anyone arrived'
-              }
-            />
-          </dl>
-        )}
-
-        {context.progress.underway && (
-          <div className="mt-3">
-            <div className="flex flex-wrap justify-between gap-2 text-xs">
-              <span className="text-ink-muted">
-                {context.progress.clockIn
-                  ? `Checked in ${formatTime(context.progress.clockIn)}`
-                  : `Due to start ${formatTime(visit.start)}`}
-              </span>
-              <span className="text-ink-muted">
-                Scheduled finish {formatTime(context.progress.estimatedEnd)}
-              </span>
-            </div>
-            <div
-              role="progressbar"
-              aria-valuenow={context.progress.percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Share of the scheduled window elapsed"
-              className="bg-sunken mt-1 h-2 overflow-hidden rounded-full"
-            >
-              <div
-                className="bg-brand-600 h-full rounded-full"
-                style={{ width: `${context.progress.percent}%` }}
-              />
-            </div>
-            <p className="text-ink-subtle mt-1 text-xs">
-              {context.progress.percent}% of the scheduled window, as at{' '}
-              {formatTime(NOW)}.
-            </p>
-          </div>
-        )}
-
-        <nav
-          aria-label="Visit record"
-          className="border-line no-scrollbar -mx-4 mt-4 flex gap-1 overflow-x-auto border-b px-2 sm:-mx-6 sm:px-4"
-        >
-          {tabs.map((t) => {
-            const selected = t.slug === tab
-            return (
-              <Link
-                key={t.slug}
-                to={`/scheduling/visits/${visit.id}/${t.slug}${suffix}`}
-                aria-current={selected ? 'page' : undefined}
-                className={cn(
-                  'inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors',
-                  selected
-                    ? 'border-brand-600 text-brand-700'
-                    : 'text-ink-muted hover:text-ink border-transparent',
-                )}
-              >
-                {t.label}
-              </Link>
-            )
-          })}
-        </nav>
       </div>
+
+      <nav
+        aria-label="Visit record"
+        className="border-line no-scrollbar flex gap-2 overflow-x-auto border-b"
+      >
+        {tabs.filter((t) => !('hidden' in t)).map((t) => {
+          const selected = t.slug === tab
+          return (
+            <Link
+              key={t.slug}
+              to={`/scheduling/visits/${visit.id}/${t.slug}${suffix}`}
+              aria-current={selected ? 'page' : undefined}
+              className={cn(
+                '-mb-px inline-flex min-h-11 shrink-0 items-center border-b-2 px-4 text-sm font-medium transition-colors',
+                selected
+                  ? 'border-brand-600 text-brand-700'
+                  : 'text-ink-muted hover:text-ink border-transparent',
+              )}
+            >
+              {t.label}
+            </Link>
+          )
+        })}
+      </nav>
 
       {tab === 'overview' && <Overview context={context} />}
       {tab === 'tasks' && <TasksTab context={context} />}
@@ -373,36 +243,25 @@ export function VisitDetailsPage() {
   )
 }
 
-/* ---------------------------------- shared --------------------------------- */
-
-function LiveTile({
-  label,
-  value,
-  hint,
-}: {
-  label: string
-  value: string
-  hint: string
-}) {
+/** The visit's state as one tag, with "Not written up" where that is the truth. */
+function HeaderStatus({ visit, large = false }: { visit: BoardVisit; large?: boolean }) {
+  if (isUnlogged(visit)) return <NotWrittenUp />
   return (
-    <div className="border-line rounded-lg border p-3">
-      <dt className="text-ink-subtle text-xs font-semibold tracking-wider uppercase">
-        {label}
-      </dt>
-      <dd className="text-ink mt-1 text-xl font-bold tracking-tight tabular-nums">
-        {value}
-      </dd>
-      <dd className="text-ink-subtle mt-0.5 text-xs break-words">{hint}</dd>
-    </div>
+    <span className="flex flex-wrap items-center gap-1.5">
+      <VisitStatusBadge status={visit.status} square={!large} large={large} />
+      {visit.status === 'completed' && !visit.logged && <NotWrittenUp />}
+    </span>
   )
 }
+
+/* ---------------------------------- shared --------------------------------- */
 
 /** One rule for how a visit's state reads on a row, used everywhere. */
 function RowStatus({ visit }: { visit: BoardVisit }) {
   if (isUnlogged(visit)) return <NotWrittenUp />
   return (
     <span className="flex shrink-0 flex-wrap items-center gap-1.5">
-      <VisitStatusBadge status={visit.status} />
+      <VisitStatusBadge status={visit.status} square />
       {visit.status === 'completed' && !visit.logged && <NotWrittenUp />}
     </span>
   )
@@ -410,7 +269,7 @@ function RowStatus({ visit }: { visit: BoardVisit }) {
 
 function NotWrittenUp() {
   return (
-    <span className="text-ink-subtle bg-sunken inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+    <span className="text-ink-muted bg-sunken inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap">
       Not written up
     </span>
   )
@@ -440,227 +299,489 @@ function Rows({
 
 /* --------------------------------- overview -------------------------------- */
 
+/** The Overview's card: a larger title than `Panel`, with links on the right. */
+function Card({
+  title,
+  actions,
+  children,
+}: {
+  title: string
+  actions?: React.ReactNode
+  children: React.ReactNode
+}) {
+  const id = `card-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  return (
+    <section aria-labelledby={id} className="card p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 id={id} className="text-ink text-base font-semibold tracking-tight">
+          {title}
+        </h2>
+        {actions && <div className="flex items-center gap-3 text-sm">{actions}</div>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function CardLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="text-brand-700 hover:text-brand-800 inline-flex items-center gap-1 font-medium"
+    >
+      {children}
+    </Link>
+  )
+}
+
+/** Label and value side by side, both left-aligned, with inset rules. */
+function InfoRows({
+  rows,
+}: {
+  rows: { id: string; label: string; value: React.ReactNode }[]
+}) {
+  return (
+    <dl className="divide-line/60 divide-y">
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-center gap-x-4 py-2.5 first:pt-0 last:pb-0"
+        >
+          <dt className="text-ink-muted text-sm">{row.label}</dt>
+          <dd className="text-ink text-sm break-words">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function Initials({ name, className }: { name: string; className?: string }) {
+  return (
+    <Avatar name={name} decorative className={cn('size-10 shrink-0 text-sm', className)} />
+  )
+}
+
+const relatedDay = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'UTC',
+})
+
 function Overview({ context }: { context: VisitContext }) {
   const { visit, related, recurrence, profile } = context
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-      <div className="space-y-4 xl:col-span-2">
-        <Panel title="Visit information">
-          <Rows
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+      <div className="space-y-5 xl:col-span-3">
+        <Card title="Visit Information">
+          <InfoRows
             rows={[
-              { id: 'ref', label: 'Reference', value: context.reference },
+              { id: 'ref', label: 'Visit ID', value: context.reference },
               { id: 'date', label: 'Date', value: formatFullDay(visit.date) },
               {
                 id: 'time',
                 label: 'Time',
-                value: `${formatTime(visit.start)} – ${formatTime(visit.end)}`,
+                value: `${formatTime(visit.start)} - ${formatTime(visit.end)}`,
               },
               {
                 id: 'duration',
                 label: 'Duration',
                 value: `${visit.durationHours} hour${visit.durationHours === 1 ? '' : 's'}`,
               },
-              { id: 'service', label: 'Service', value: visit.type },
+              { id: 'service', label: 'Service Type', value: visit.type },
               {
-                id: 'location',
-                label: 'Location',
-                value: profile.personal.address,
+                id: 'priority',
+                label: 'Priority',
+                value: <PriorityBadge priority={visit.priority} square />,
               },
+              { id: 'status', label: 'Status', value: <HeaderStatus visit={visit} /> },
+              { id: 'location', label: 'Location', value: profile.personal.address },
               {
-                // Read off the rota, so the pattern and the neighbouring
-                // visits below cannot describe different weeks.
+                // Read off the rota, so the pattern and Related Visits cannot
+                // describe different weeks.
                 id: 'recurring',
-                label: 'Recurrence',
-                value: recurrence ?? 'One-off visit',
+                label: 'Recurring',
+                value: recurrence ? `Yes — ${recurrence.replace(/^Every /, '')}` : 'No',
               },
             ]}
           />
-        </Panel>
+        </Card>
 
-        <VisitTasksPanel context={context} />
-
-        {/* The same rows the Notes tab renders, from the same view model. Two
-            hand-written lists over one set of notes drifted immediately: this
-            panel said "nobody wrote a note" directly above a link to a tab
-            showing two, and it left off the marker saying whether the author
-            was even on the visit. */}
-        <VisitNotesPanel context={context} limit={OVERVIEW_NOTES} />
+        <OverviewTasks context={context} />
+        <OverviewNotes context={context} />
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5 xl:col-span-2">
         <RecipientCard context={context} />
         <CaregiverCard context={context} />
-        <VisitTimelinePanel context={context} />
+        <OverviewTimeline context={context} />
 
-        <Panel title="Related visits">
+        <Card title="Related Visits">
           {related.length === 0 ? (
-            <p className="text-ink-subtle text-sm" role="status">
+            <p className="text-ink-muted text-sm" role="status">
               {recurrence
                 ? 'No other occurrence of this slot within three weeks.'
                 : 'This visit does not recur.'}
             </p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2.5">
               {related.map(({ visit: other, when }) => (
-                <li key={other.id} className="border-line rounded-lg border p-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <li
+                  key={other.id}
+                  className="bg-sunken flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5"
+                >
+                  <div className="min-w-0">
                     <Link
                       to={`/scheduling/visits/${other.id}/overview`}
-                      className="text-brand-700 hover:text-brand-800 min-w-0 text-sm font-semibold break-words"
+                      className="text-ink hover:text-brand-700 text-sm font-semibold break-words"
                     >
-                      {when === 'previous' ? 'Previous' : 'Next'}: {formatFullDay(other.date)}
+                      {when === 'previous' ? 'Previous' : 'Next'}:{' '}
+                      {relatedDay.format(new Date(`${other.date}T00:00:00Z`))}
                     </Link>
-                    <RowStatus visit={other} />
+                    <p className="text-ink-muted mt-0.5 text-xs break-words">
+                      {formatTime(other.start)} · {other.type} ·{' '}
+                      {other.caregiverName ?? 'Unassigned'}
+                    </p>
                   </div>
-                  <p className="text-ink-muted mt-0.5 text-xs break-words">
-                    {formatTime(other.start)} · {other.type} ·{' '}
-                    {other.caregiverName ?? 'Unassigned'}
-                  </p>
+                  <RowStatus visit={other} />
                 </li>
               ))}
             </ul>
           )}
-        </Panel>
+        </Card>
       </div>
     </div>
+  )
+}
+
+function OverviewTasks({ context }: { context: VisitContext }) {
+  const { tasks, visit } = context
+  const progress = taskProgress(tasks)
+  // Only said when the list alone would mislead.
+  const caveat =
+    visit.status === 'cancelled'
+      ? 'The visit was cancelled, so none of these ran.'
+      : isUnlogged(visit)
+        ? 'The window closed with no visit record, so none of these is known to have happened.'
+        : null
+
+  return (
+    <Card
+      title="Visit Tasks"
+      actions={
+        <span className="bg-sunken text-ink-muted rounded-md px-2 py-0.5 text-xs font-medium">
+          {progress.done} of {progress.total} completed
+        </span>
+      }
+    >
+      <ul className="divide-line/60 divide-y">
+        {tasks.map((task) => (
+          <TaskRow key={task.id} task={task} />
+        ))}
+      </ul>
+      {caveat && <p className="text-ink-muted mt-3 text-xs">{caveat}</p>}
+    </Card>
   )
 }
 
 function TaskRow({ task }: { task: VisitTask }) {
   return (
     <li className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-      {/* Icon and words, never colour alone. */}
+      {/* Shape and words, never colour alone. */}
       {task.state === 'done' ? (
-        <Check className="size-4 shrink-0 text-emerald-600" strokeWidth={3} aria-hidden="true" />
+        <CircleCheck className="size-5 shrink-0 text-emerald-600" strokeWidth={2} aria-hidden="true" />
       ) : task.state === 'current' ? (
-        <CircleDot className="text-brand-600 size-4 shrink-0" strokeWidth={2.2} aria-hidden="true" />
+        <Circle className="text-brand-600 size-5 shrink-0" strokeWidth={2.2} aria-hidden="true" />
       ) : (
-        <span aria-hidden="true" className="border-line size-4 shrink-0 rounded-full border" />
+        <Circle className="text-line size-5 shrink-0" strokeWidth={2} aria-hidden="true" />
       )}
       <span
         className={cn(
           'min-w-0 flex-1 text-sm break-words',
-          task.state === 'done' ? 'text-ink-muted' : 'text-ink',
+          task.state === 'pending' ? 'text-ink-muted' : 'text-ink',
+          task.state === 'current' && 'font-medium',
         )}
       >
         {task.label}
       </span>
       <span
         className={cn(
-          'shrink-0 text-xs font-semibold',
+          'shrink-0 rounded-md px-2 py-0.5 text-xs font-medium',
           task.state === 'done'
-            ? 'text-emerald-700'
+            ? 'bg-emerald-50 text-emerald-700'
             : task.state === 'current'
-              ? 'text-brand-700'
-              : 'text-ink-subtle',
+              ? 'bg-brand-50 text-brand-700'
+              : 'bg-sunken text-ink-muted',
         )}
       >
-        {task.state === 'done' ? 'Done' : task.state === 'current' ? 'In progress' : 'Pending'}
+        {task.state === 'done' ? 'Completed' : task.state === 'current' ? 'In Progress' : 'Pending'}
       </span>
     </li>
+  )
+}
+
+function OverviewNotes({ context }: { context: VisitContext }) {
+  const { visit, notes } = context
+  const all = useMemo(() => visitNotesFor(visit, notes), [visit, notes])
+  const shown = all.slice(0, OVERVIEW_NOTES)
+
+  return (
+    <Card
+      title="Visit Notes"
+      actions={
+        // Nothing in the app stores a note yet, so this announces itself as
+        // unavailable rather than opening a form that saves nowhere.
+        <button
+          type="button"
+          aria-disabled="true"
+          className="text-brand-700 inline-flex items-center gap-1 font-medium aria-disabled:cursor-default aria-disabled:opacity-50"
+        >
+          <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
+          Add Note
+        </button>
+      }
+    >
+      {shown.length === 0 ? (
+        <p className="text-ink-muted text-sm" role="status">
+          Nothing was filed inside this visit&rsquo;s window.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {shown.map((note) => (
+            <li key={note.id} className="bg-line/60 rounded-lg p-4">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
+                  {note.authored ? (
+                    <span aria-hidden="true" className="text-brand-600 text-[11px] font-semibold">
+                      {note.author
+                        .split(' ')
+                        .map((part) => part[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </span>
+                  ) : (
+                    <FileText className="text-ink-muted size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+                  )}
+                  <span className="text-ink font-semibold">{note.author}</span>
+                  <span className="text-ink-muted text-xs">{note.authorRole}</span>
+                  {!note.authored && (
+                    <span className="sr-only"> — generated from the visit record</span>
+                  )}
+                </p>
+                <time
+                  dateTime={note.isInstant ? note.at : `${visit.date}T${note.at}:00Z`}
+                  className="text-ink-muted text-xs tabular-nums"
+                >
+                  {formatTime(visitNoteTime(note))}
+                </time>
+              </div>
+              <p className="text-ink-muted mt-2 text-sm break-words">
+                {note.authored ? `“${note.body}”` : note.body}
+              </p>
+              {note.flagged && (
+                <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-red-700">
+                  <TriangleAlert className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
+                  Flagged for review
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {all.length > shown.length && (
+        <Link
+          to={`/scheduling/visits/${visit.id}/notes`}
+          className="text-brand-700 hover:text-brand-800 mt-3 inline-flex text-xs font-medium"
+        >
+          {all.length - shown.length} more on the Notes tab
+        </Link>
+      )}
+    </Card>
+  )
+}
+
+function OverviewTimeline({ context }: { context: VisitContext }) {
+  const { timeline, visit } = context
+
+  return (
+    <Card title="Visit Timeline">
+      {timeline.length === 0 ? (
+        <p className="text-ink-muted text-sm" role="status">
+          {visit.status === 'cancelled'
+            ? 'The visit was cancelled, so no times were recorded against it.'
+            : 'Nothing on this visit carries a time yet.'}
+        </p>
+      ) : (
+        <ol className="space-y-4">
+          {timeline.map((entry) => {
+            const recorded = entry.source === 'record'
+            return (
+              <li key={entry.id} className="flex gap-3">
+                {/* Filled for a recorded time, hollow for a rota time. */}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'mt-1.5 size-2.5 shrink-0 rounded-full',
+                    entry.next
+                      ? 'border-brand-600 border-2 bg-white'
+                      : recorded
+                        ? 'bg-ink-subtle'
+                        : 'border-ink-subtle border bg-white',
+                  )}
+                />
+                <div className="min-w-0">
+                  <p
+                    className={cn(
+                      'text-sm font-semibold break-words',
+                      entry.next ? 'text-brand-700' : 'text-ink',
+                    )}
+                  >
+                    <span className="sr-only">{recorded ? 'Recorded: ' : 'Scheduled: '}</span>
+                    {entry.label}
+                    {entry.next && ' (next)'}
+                  </p>
+                  <p
+                    className={cn(
+                      'text-xs tabular-nums',
+                      entry.next ? 'text-brand-700' : 'text-ink-muted',
+                    )}
+                  >
+                    {formatTime(entry.at)}
+                    {!recorded && ' · scheduled'}
+                  </p>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </Card>
   )
 }
 
 /* ----------------------------------- cards --------------------------------- */
 
 function RecipientCard({ context }: { context: VisitContext }) {
-  const { recipient, profile, primaryContact } = context
+  const { recipient, profile, primaryContact, family } = context
+  const emergency =
+    family.find((m) => m.roles.includes('Emergency Contact')) ?? primaryContact
+
   return (
-    <Panel
-      title="Care recipient"
-      action={{ label: 'Open the care record', to: `/care-recipients/${recipient.id}` }}
+    <Card
+      title="Care Recipient"
+      actions={
+        <CardLink to={`/care-recipients/${recipient.id}`}>
+          View Full Profile
+          <ArrowRight className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
+        </CardLink>
+      }
     >
-      <div className="flex items-center gap-3">
-        <Avatar name={recipient.name} decorative className="size-10 shrink-0" />
+      <div className="mb-4 flex items-center gap-3">
+        <Initials name={recipient.name} />
         <div className="min-w-0">
           <p className="text-ink text-sm font-semibold break-words">{recipient.name}</p>
-          <p className="text-ink-subtle text-xs">
-            {recipient.age} years old · {profile.sex}
+          <p className="text-ink-muted text-xs">
+            Age {recipient.age}, {profile.sex}
           </p>
         </div>
       </div>
-      <Rows
+      <InfoRows
         rows={[
-          { id: 'condition', label: 'Primary condition', value: recipient.condition },
-          { id: 'level', label: 'Care level', value: recipient.careLevel },
-          {
-            // From the shared label map, so this screen cannot say "On-hold"
-            // where every other screen says "On hold".
-            id: 'status',
-            label: 'Care status',
-            value: recipientStatusLabels[recipient.status],
-          },
+          { id: 'condition', label: 'Primary Condition', value: recipient.condition },
+          { id: 'level', label: 'Care Level', value: recipient.careLevel },
+          { id: 'address', label: 'Address', value: profile.personal.address },
           {
             id: 'contact',
-            label: 'Primary contact',
-            // From the family directory, so the relationship cannot drift.
-            value: primaryContact
-              ? `${primaryContact.name} (${primaryContact.relationship}) · ${primaryContact.phone}`
+            label: 'Emergency Contact',
+            value: emergency
+              ? `${emergency.name} (${emergency.relationship}) • ${emergency.phone}`
               : 'None on file',
           },
         ]}
       />
-    </Panel>
+    </Card>
   )
 }
 
 function CaregiverCard({ context }: { context: VisitContext }) {
-  const { caregiver, visit } = context
+  const { caregiver, visit, progress } = context
 
   if (!caregiver) {
     return (
-      <Panel title="Assigned caregiver">
-        <p className="text-ink-subtle text-sm" role="status">
+      <Card title="Assigned Caregiver">
+        <p className="text-ink-muted text-sm" role="status">
           Nobody is assigned. {context.unassignedReason}
         </p>
-        <Link
-          to="/caregivers?sort=compliance"
-          className="text-brand-700 hover:text-brand-800 mt-2 inline-flex min-h-11 items-center text-sm font-medium"
-        >
-          Find someone on the roster
-        </Link>
-      </Panel>
+        {visit.date >= TODAY && visit.status !== 'cancelled' && (
+          <Link
+            to={`/scheduling/visits/${visit.id}/assign`}
+            className="bg-brand-600 hover:bg-brand-700 mt-3 inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-white"
+          >
+            Assign Caregiver
+          </Link>
+        )}
+      </Card>
     )
   }
 
-  const window = caregiver.availability.find((w) => w.day === visit.day)
+  const performance = performanceFor(caregiver)
+  // "On Visit" only on a recorded clock-in inside the window — not on the
+  // rota saying they should be there.
+  const onVisit = progress.underway && progress.clockIn !== null
 
   return (
-    <Panel
-      title="Assigned caregiver"
-      action={{ label: 'Open the staff record', to: `/caregivers/${caregiver.id}/overview` }}
+    <Card
+      title="Assigned Caregiver"
+      actions={
+        <>
+          <CardLink to={`/caregivers/${caregiver.id}/overview`}>
+            View Profile
+            <ArrowRight className="size-3.5" strokeWidth={2.2} aria-hidden="true" />
+          </CardLink>
+          <span aria-hidden="true" className="bg-line h-4 w-px" />
+          <button
+            type="button"
+            aria-disabled="true"
+            className="text-brand-700 font-medium aria-disabled:cursor-default aria-disabled:opacity-50"
+          >
+            Message<span className="sr-only"> {caregiver.name}</span>
+          </button>
+        </>
+      }
     >
-      <div className="flex items-center gap-3">
-        <Avatar name={caregiver.name} decorative className="size-10 shrink-0" />
+      <div className="mb-4 flex items-center gap-3">
+        <Initials name={caregiver.name} />
         <div className="min-w-0">
-          <p className="text-ink text-sm font-semibold break-words">{caregiver.name}</p>
-          <p className="text-ink-subtle text-xs break-words">{caregiver.title}</p>
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="text-ink text-sm font-semibold break-words">{caregiver.name}</span>
+            {onVisit && (
+              <span className="bg-brand-50 text-brand-700 rounded-md px-1.5 py-0.5 text-[11px] font-semibold">
+                On Visit
+              </span>
+            )}
+          </p>
+          <p className="text-ink-muted text-xs break-words">{caregiver.title}</p>
         </div>
       </div>
-      <Rows
+      <InfoRows
         rows={[
-          { id: 'branch', label: 'Branch', value: caregiver.branch },
-          { id: 'shift', label: 'Preferred shift', value: caregiver.preferredShift },
           {
-            id: 'window',
-            label: `${visit.day} availability`,
-            value: window
-              ? `${formatTime(window.start)} – ${formatTime(window.end)}`
-              : 'None set',
+            id: 'clock-in',
+            label: 'Clock In',
+            value: progress.clockIn ? formatTime(progress.clockIn) : 'Not recorded',
           },
+          {
+            id: 'performance',
+            label: 'Performance',
+            value:
+              performance.rating === null ? 'No ratings yet' : `${performance.rating} / 5.0`,
+          },
+          { id: 'branch', label: 'Branch', value: caregiver.branch },
         ]}
       />
-      <button
-        type="button"
-        aria-disabled="true"
-        className="border-line text-ink hover:bg-sunken mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
-      >
-        <MessageSquare className="size-4" strokeWidth={1.9} aria-hidden="true" />
-        Message
-        <span className="sr-only"> {caregiver.name}</span>
-      </button>
-    </Panel>
+    </Card>
   )
 }
 
@@ -1857,7 +1978,7 @@ function FilterChip({
         'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
         selected
           ? 'border-brand-600 bg-brand-600 text-white'
-          : 'border-line text-ink-muted hover:bg-sunken',
+          : 'border-control text-ink-muted hover:bg-sunken',
       )}
     >
       {label}

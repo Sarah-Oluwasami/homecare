@@ -13,6 +13,14 @@ import type {
 const base =
   'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap'
 
+/** A page heading's status: the same pill, one size up. */
+const largeBase =
+  'inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap'
+
+/** The record screens draw status as a squared tag rather than a pill. */
+const squareBase =
+  'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap'
+
 /* --------------------------------- visits --------------------------------- */
 
 const visitStatusTone: Record<VisitStatus, Tone> = {
@@ -35,9 +43,22 @@ const visitStatusLabels: Record<VisitStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-export function VisitStatusBadge({ status }: { status: VisitStatus }) {
+export function VisitStatusBadge({
+  status,
+  square = false,
+  large = false,
+}: {
+  status: VisitStatus
+  square?: boolean
+  large?: boolean
+}) {
   return (
-    <span className={cn(base, tonePill[visitStatusTone[status]])}>
+    <span
+      className={cn(
+        large ? largeBase : square ? squareBase : base,
+        tonePill[visitStatusTone[status]],
+      )}
+    >
       {visitStatusLabels[status]}
     </span>
   )
@@ -88,9 +109,17 @@ const priorityTone: Record<Priority, Tone> = {
 }
 
 /** Pill form — used in dense directory tables. */
-export function PriorityBadge({ priority }: { priority: Priority }) {
+export function PriorityBadge({
+  priority,
+  square = false,
+}: {
+  priority: Priority
+  square?: boolean
+}) {
   return (
-    <span className={cn(base, 'capitalize', tonePill[priorityTone[priority]])}>
+    <span
+      className={cn(square ? squareBase : base, 'capitalize', tonePill[priorityTone[priority]])}
+    >
       {priority}
     </span>
   )

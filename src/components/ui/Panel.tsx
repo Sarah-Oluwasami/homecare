@@ -50,7 +50,12 @@ export function Panel({
       </div>
 
       {action && (
-        <div className="border-line border-t p-3 text-center">
+        /*
+         * No rule above the link. The designs draw the footer as part of the
+         * card rather than as a band cut off from it, and where the body is a
+         * divided list the extra full-bleed rule read as one more row.
+         */
+        <div className="p-3 text-center">
           <Link
             to={action.to}
             className="text-brand-700 hover:text-brand-800 inline-flex items-center gap-1.5 text-sm font-medium"

@@ -55,16 +55,22 @@ export function DirectoryToolbar({
               onClick={() => onFilterChange(id)}
               className={cn(
                 'inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
+                // An idle chip carries its own fill. Without one the row read
+                // as a single button followed by four pieces of loose text —
+                // the count beside each label was the only hint they were the
+                // same kind of control.
                 selected
                   ? 'bg-brand-600 text-white'
-                  : 'text-ink-muted hover:bg-sunken',
+                  : 'bg-sunken text-ink-muted hover:bg-line hover:text-ink',
               )}
             >
               {label}
               <span
                 className={cn(
+                  // ink-subtle clears 4.5:1 on white but not on the chip's
+                  // own fill, and the count is real content, not decoration.
                   'text-xs tabular-nums',
-                  selected ? 'text-white' : 'text-ink-subtle',
+                  selected ? 'text-white' : 'text-ink-muted',
                 )}
               >
                 {counts[id]}
@@ -97,7 +103,7 @@ export function DirectoryToolbar({
               type="button"
               // Labels drop below sm; the accessible name stays either way
               aria-label={label}
-              className="border-line text-ink-muted hover:bg-sunken inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:flex-none"
+              className="border-control text-ink-muted hover:bg-sunken inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:flex-none"
             >
               <Icon className="size-4" strokeWidth={1.8} />
               <span className="hidden sm:inline">{label}</span>

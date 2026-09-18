@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Link,
   Navigate,
@@ -6,17 +6,14 @@ import {
   useLocation,
   useParams,
 } from 'react-router-dom'
-import { Check, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
+import { Check, ChevronRight, CircleX, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import {
-  RATE_PER_HOUR,
   TODAY,
   changesFrom,
   credentialLabel,
   deleteBlockers,
   hasErrors,
   hoursOffered,
-  marginPercent,
-  statusOptions,
   supervisorOptions,
   toFormValues,
   validate,
@@ -26,6 +23,7 @@ import type { Change, FormValues } from '@/features/caregivers/edit-form'
 import {
   branches,
   employmentTypes,
+  formatTime,
   getStaffMember,
   shifts,
   statusLabels,
@@ -37,11 +35,10 @@ import type {
   Employment,
   Shift,
   StaffMember,
-  StaffStatus,
   Weekday,
 } from '@/features/caregivers/roster-data'
-import { Panel } from '@/components/ui/Panel'
 import { Field } from '@/components/ui/Field'
+import { Toggle } from '@/components/ui/Toggle'
 import { fieldControl } from '@/lib/field-classes'
 import { cn } from '@/lib/cn'
 
@@ -64,6 +61,9 @@ export function CaregiverEditPage() {
 function EditForm({ member, search }: { member: StaffMember; search: string }) {
   const [values, setValues] = useState<FormValues>(() => toFormValues(member))
   const [submitted, setSubmitted] = useState(false)
+  // Not on the staff record yet, so it lives only on this form for now.
+  const [gender, setGender] = useState('')
+  const [emergencyEmail, setEmergencyEmail] = useState('')
   const [saved, setSaved] = useState<Change[] | null>(null)
   const nextCredentialId = useRef(0)
 
@@ -125,8 +125,6 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
     setSaved(changes)
   }
 
-  const rate = Number(values.hourlyRate)
-  const margin = marginPercent(rate)
   const offered = hoursOffered(values.availability)
 
   return (
@@ -134,32 +132,36 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
        phrase the same problems differently. */
     <form onSubmit={onSubmit} noValidate className="space-y-6">
       <nav aria-label="Breadcrumb">
-        <ol className="text-ink-subtle flex flex-wrap items-center gap-1.5 text-sm">
+        <ol className="text-ink-muted flex flex-wrap items-center gap-1.5 text-sm">
           <li>
             <Link to={rosterPath} className="hover:text-ink">
               Caregivers
             </Link>
           </li>
-          <li aria-hidden="true">/</li>
+          <li aria-hidden="true">
+            <ChevronRight className="size-3.5" strokeWidth={2.4} />
+          </li>
           <li>
             <Link to={profile} className="hover:text-ink">
               {member.name}
             </Link>
           </li>
-          <li aria-hidden="true">/</li>
-          <li className="text-ink font-medium" aria-current="page">
+          <li aria-hidden="true">
+            <ChevronRight className="size-3.5" strokeWidth={2.4} />
+          </li>
+          <li className="text-ink" aria-current="page">
             Edit
           </li>
         </ol>
       </nav>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="-mt-4 flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-ink text-2xl font-bold tracking-tight">
-            Edit caregiver profile
+            Edit Caregiver Profile
           </h1>
           <p className="text-ink-muted mt-1 text-sm">
-            Update {member.name}&rsquo;s details, credentials and availability.
+            Update {member.name}{/s$/i.test(member.name) ? '’' : '’s'} information, certifications, and preferences.
           </p>
         </div>
         <Actions dirty={dirty} to={profile} where="at the top of the form" />
@@ -260,92 +262,108 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
         />
       )}
 
-      <Panel title="Personal information">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="First name" error={show('firstName')}>
-            {(p) => (
-              <input
-                {...p}
-                className={fieldControl}
-                value={values.firstName}
-                onChange={(e) => set('firstName', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="Last name" error={show('lastName')}>
-            {(p) => (
-              <input
-                {...p}
-                className={fieldControl}
-                value={values.lastName}
-                onChange={(e) => set('lastName', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field
-            label="Date of birth"
-            error={show('dateOfBirth')}
-            hint="Age on the profile is computed from this."
-          >
-            {(p) => (
-              <input
-                {...p}
-                type="date"
-                max={TODAY}
-                className={fieldControl}
-                value={values.dateOfBirth}
-                onChange={(e) => set('dateOfBirth', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="Phone" error={show('phone')}>
-            {(p) => (
-              <input
-                {...p}
-                type="tel"
-                className={fieldControl}
-                value={values.phone}
-                onChange={(e) => set('phone', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field
-            label="Email"
-            error={show('email')}
-            hint="Leave blank to use firstname.lastname@careprofs.com."
-            className="sm:col-span-2"
-          >
-            {(p) => (
-              <input
-                {...p}
-                type="email"
-                className={fieldControl}
-                value={values.email}
-                onChange={(e) => set('email', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="Street" className="sm:col-span-2">
-            {(p) => (
-              <input
-                {...p}
-                className={fieldControl}
-                value={values.street}
-                onChange={(e) => set('street', e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="City">
-            {(p) => (
-              <input
-                {...p}
-                className={fieldControl}
-                value={values.city}
-                onChange={(e) => set('city', e.target.value)}
-              />
-            )}
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
+      <section aria-labelledby="edit-personal" className="card p-5 sm:p-6">
+        <h2 id="edit-personal" className="text-ink text-base font-semibold tracking-tight">
+          Personal Information
+        </h2>
+        {/* Two columns read top to bottom, as the Figma lays them out; on a
+            phone they stack in the same order. */}
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div className="space-y-4">
+            <Field label="First Name" error={show('firstName')}>
+              {(p) => (
+                <input
+                  {...p}
+                  className={fieldControl}
+                  value={values.firstName}
+                  onChange={(e) => set('firstName', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Last Name" error={show('lastName')}>
+              {(p) => (
+                <input
+                  {...p}
+                  className={fieldControl}
+                  value={values.lastName}
+                  onChange={(e) => set('lastName', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Date of Birth" error={show('dateOfBirth')}>
+              {(p) => (
+                <input
+                  {...p}
+                  type="date"
+                  max={TODAY}
+                  className={fieldControl}
+                  value={values.dateOfBirth}
+                  onChange={(e) => set('dateOfBirth', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Gender">
+              {(p) => (
+                <select
+                  {...p}
+                  className={fieldControl}
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="Female">Female</option>
+                  <option value="Male">Male</option>
+                  <option value="Non-binary">Non-binary</option>
+                </select>
+              )}
+            </Field>
+          </div>
+
+          <div className="space-y-4">
+            <Field label="Phone" error={show('phone')}>
+              {(p) => (
+                <input
+                  {...p}
+                  type="tel"
+                  className={fieldControl}
+                  value={values.phone}
+                  onChange={(e) => set('phone', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Email" error={show('email')}>
+              {(p) => (
+                <input
+                  {...p}
+                  type="email"
+                  placeholder="firstname.lastname@careprofs.com"
+                  className={fieldControl}
+                  value={values.email}
+                  onChange={(e) => set('email', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Address">
+              {(p) => (
+                <input
+                  {...p}
+                  className={fieldControl}
+                  value={values.street}
+                  onChange={(e) => set('street', e.target.value)}
+                />
+              )}
+            </Field>
+            <div className="grid grid-cols-[minmax(0,1fr)_5rem_6.5rem] gap-3">
+            <Field label="City">
+              {(p) => (
+                <input
+                  {...p}
+                  className={fieldControl}
+                  value={values.city}
+                  onChange={(e) => set('city', e.target.value)}
+                />
+              )}
+            </Field>
             <Field label="State">
               {(p) => (
                 <input
@@ -356,7 +374,7 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
                 />
               )}
             </Field>
-            <Field label="Postcode">
+            <Field label="Zip">
               {(p) => (
                 <input
                   {...p}
@@ -367,22 +385,24 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
                 />
               )}
             </Field>
+            </div>
           </div>
         </div>
-      </Panel>
+      </section>
 
-      <Panel title="Employment details">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field
-            label="Employee number"
-            readOnlyNote="Issued on hire; it cannot be changed."
-          >
+      <section aria-labelledby="edit-employment" className="card p-5 sm:p-6">
+        <h2 id="edit-employment" className="text-ink text-base font-semibold tracking-tight">
+          Employment Details
+        </h2>
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <Field label="Employee ID">
             {(p) => (
               <input
                 {...p}
                 readOnly
                 value={member.ref}
-                className={cn(fieldControl, 'bg-sunken text-ink-subtle')}
+                aria-description="Issued on hire; it cannot be changed."
+                className={cn(fieldControl, 'bg-sunken text-ink-subtle border-transparent')}
               />
             )}
           </Field>
@@ -400,7 +420,7 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
               </select>
             )}
           </Field>
-          <Field label="Employment type">
+          <Field label="Employment Type">
             {(p) => (
               <select
                 {...p}
@@ -414,23 +434,23 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
               </select>
             )}
           </Field>
-          <Field
-            label="Hourly pay rate"
-            error={show('hourlyRate')}
-            hint={
-              margin === null
-                ? `The client is charged ₦${RATE_PER_HOUR} an hour.`
-                : `₦${RATE_PER_HOUR} charged to the client — ${margin}% gross margin.`
-            }
-          >
+          <Field label="Hourly Rate" error={show('hourlyRate')}>
             {(p) => (
-              <input
-                {...p}
-                inputMode="decimal"
-                className={fieldControl}
-                value={values.hourlyRate}
-                onChange={(e) => set('hourlyRate', e.target.value)}
-              />
+              <span className="relative block">
+                <span
+                  aria-hidden="true"
+                  className="text-ink pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
+                >
+                  ₦
+                </span>
+                <input
+                  {...p}
+                  inputMode="decimal"
+                  className={cn(fieldControl, 'pl-6')}
+                  value={values.hourlyRate}
+                  onChange={(e) => set('hourlyRate', e.target.value)}
+                />
+              </span>
             )}
           </Field>
           <Field label="Branch">
@@ -469,11 +489,7 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
               </select>
             )}
           </Field>
-          <Field
-            label="Start date"
-            error={show('hiredAt')}
-            hint="Tenure and years of experience are computed from this."
-          >
+          <Field label="Start Date" error={show('hiredAt')}>
             {(p) => (
               <input
                 {...p}
@@ -484,28 +500,30 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
               />
             )}
           </Field>
-          <Field label="Employment status">
-            {(p) => (
-              <select
-                {...p}
-                className={fieldControl}
-                value={values.status}
-                onChange={(e) => set('status', e.target.value as StaffStatus)}
-              >
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {statusLabels[s]}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
+          <div className="min-w-0">
+            <p className="text-ink-muted mb-1.5 block text-xs font-medium">Status</p>
+            {/* On means active; off means inactive. "On leave" shows as off
+                and keeps its label until the switch is touched. */}
+            <Toggle
+              leading
+              label={statusLabels[values.status]}
+              labelClassName="font-semibold"
+              checked={values.status === 'active'}
+              onChange={(on) => set('status', on ? 'active' : 'inactive')}
+              className="h-10"
+            />
+          </div>
         </div>
-      </Panel>
+      </section>
 
-      <Panel title="Skills and languages">
+      <section aria-labelledby="edit-skills" className="card p-5 sm:p-6">
+        <h2 id="edit-skills" className="text-ink text-base font-semibold tracking-tight">
+          Skills &amp; Specializations
+        </h2>
+        <div className="mt-4">
         <TokenList
-          label="Skills"
+          label="Current Skills"
+          addLabel="Add Skill"
           placeholder="Add a skill"
           values={values.skills}
           error={show('skills')}
@@ -514,13 +532,15 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
         <div className="mt-5">
           <TokenList
             label="Languages"
+            addLabel="Add Language"
             placeholder="Add a language"
             values={values.languages}
             error={show('languages')}
             onChange={(next) => set('languages', next)}
           />
         </div>
-      </Panel>
+        </div>
+      </section>
 
       <Credentials
         values={values}
@@ -529,9 +549,12 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
         onChange={(next) => set('credentials', next)}
       />
 
-      <Panel title="Emergency contact">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Contact name" error={show('emergencyName')}>
+      <section aria-labelledby="edit-emergency" className="card p-5 sm:p-6">
+        <h2 id="edit-emergency" className="text-ink text-base font-semibold tracking-tight">
+          Emergency Contact
+        </h2>
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <Field label="Contact Name" error={show('emergencyName')}>
             {(p) => (
               <input
                 {...p}
@@ -554,16 +577,38 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
           </Field>
           <Field label="Relationship">
             {(p) => (
-              <input
+              <select
                 {...p}
                 className={fieldControl}
                 value={values.emergencyRelationship}
                 onChange={(e) => set('emergencyRelationship', e.target.value)}
+              >
+                {/* A stored relationship outside the list still shows as itself. */}
+                {!relationships.includes(values.emergencyRelationship) && (
+                  <option value={values.emergencyRelationship}>
+                    {values.emergencyRelationship || 'Select…'}
+                  </option>
+                )}
+                {relationships.map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Email">
+            {(p) => (
+              <input
+                {...p}
+                type="email"
+                placeholder="name@email.com"
+                className={fieldControl}
+                value={emergencyEmail}
+                onChange={(e) => setEmergencyEmail(e.target.value)}
               />
             )}
           </Field>
         </div>
-      </Panel>
+      </section>
 
       <Availability
         values={values}
@@ -575,24 +620,27 @@ function EditForm({ member, search }: { member: StaffMember; search: string }) {
         maxError={show('maxHoursPerWeek')}
       />
 
-      <Panel title="Internal notes">
-        <Field
-          label="Notes and preferences"
-          hint="Visible to coordinators only; families never see this."
-        >
-          {(p) => (
-            <textarea
-              {...p}
-              rows={4}
-              className="border-line focus:border-brand-500 w-full rounded-lg border px-3 py-2 text-sm"
-              value={values.notes}
-              onChange={(e) => set('notes', e.target.value)}
-            />
-          )}
-        </Field>
-      </Panel>
+      <section aria-labelledby="edit-notes" className="card p-5 sm:p-6">
+        <h2 id="edit-notes" className="text-ink text-base font-semibold tracking-tight">
+          Notes
+        </h2>
+        <div className="mt-4">
+          <Field label="Internal Notes & Caregiver Preferences">
+            {(p) => (
+              <textarea
+                {...p}
+                rows={5}
+                aria-description="Visible to coordinators only; families never see this."
+                className="border-control focus:border-brand-500 w-full rounded-lg border px-3 py-2.5 text-sm"
+                value={values.notes}
+                onChange={(e) => set('notes', e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+      </section>
 
-      <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="border-line -mx-4 flex flex-wrap items-center justify-between gap-3 border-t px-4 pt-5 sm:-mx-6 sm:px-6">
         <DeleteControl member={member} blockers={blockers} />
         <Actions dirty={dirty} to={profile} where="at the end of the form" />
       </div>
@@ -618,7 +666,7 @@ function Actions({
     <div className="flex flex-wrap items-center gap-2">
       <Link
         to={to}
-        className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center rounded-lg border px-4 text-sm font-medium"
+        className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center rounded-lg border bg-white px-4 text-sm font-medium"
       >
         Cancel
         <span className="sr-only"> and return to the profile, {where}</span>
@@ -632,14 +680,14 @@ function Actions({
         type="submit"
         aria-disabled={!dirty}
         aria-describedby={dirty ? undefined : reasonId}
+        // Drawn as the Figma's primary button either way; a clean submit is
+        // answered by the "nothing to save" message rather than a grey button.
         className={cn(
-          'inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium',
-          dirty
-            ? 'bg-brand-600 hover:bg-brand-700 text-white'
-            : 'bg-sunken text-ink-subtle border-line cursor-not-allowed border',
+          'bg-brand-600 inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-white',
+          dirty ? 'hover:bg-brand-700' : 'cursor-default',
         )}
       >
-        Save changes
+        Save Changes
         <span className="sr-only"> {where}</span>
       </button>
       {!dirty && (
@@ -713,14 +761,12 @@ function DeleteControl({
         aria-describedby={blocked ? 'delete-blockers' : undefined}
         onClick={() => !blocked && setConfirming(true)}
         className={cn(
-          'inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium',
-          blocked
-            ? 'border-line bg-sunken text-ink-subtle cursor-not-allowed'
-            : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+          'inline-flex h-10 items-center gap-2 text-sm font-medium',
+          blocked ? 'cursor-not-allowed text-red-600/50' : 'text-red-600 hover:text-red-700',
         )}
       >
-        <Trash2 className="size-4" strokeWidth={1.9} aria-hidden="true" />
-        Delete profile
+        <Trash2 className="size-4" strokeWidth={2} aria-hidden="true" />
+        Delete Caregiver Profile
         <span className="sr-only"> for {member.name}</span>
       </button>
       {blocked && (
@@ -751,12 +797,15 @@ function DeleteControl({
 
 function TokenList({
   label,
+  addLabel,
   placeholder,
   values,
   error,
   onChange,
 }: {
   label: string
+  /** The link that opens the add box, e.g. "Add Skill". */
+  addLabel: string
   placeholder: string
   values: string[]
   error?: string
@@ -764,6 +813,7 @@ function TokenList({
 }) {
   const [draft, setDraft] = useState('')
   const [notice, setNotice] = useState('')
+  const [adding, setAdding] = useState(false)
   const listId = `tokens-${label.toLowerCase()}`
   const errorId = `${listId}-error`
 
@@ -788,18 +838,18 @@ function TokenList({
 
   return (
     <fieldset className="min-w-0">
-      <legend className="text-ink-muted mb-1.5 text-xs font-medium">{label}</legend>
+      <legend className="text-ink-muted mb-2 text-sm font-medium">{label}</legend>
       <ul className="flex flex-wrap gap-2">
         {values.map((value) => (
           <li key={value}>
-            <span className="border-line text-ink inline-flex items-center gap-1.5 rounded-full border py-1 pr-1 pl-3 text-sm">
+            <span className="bg-brand-50 text-brand-700 inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-3 text-sm">
               {value}
               <button
                 type="button"
                 onClick={() => remove(value)}
-                className="text-ink-subtle hover:bg-sunken hover:text-ink grid size-6 place-items-center rounded-full"
+                className="text-brand-600 hover:text-brand-800 grid size-6 place-items-center rounded-full"
               >
-                <X className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+                <CircleX className="size-4" strokeWidth={2.2} aria-hidden="true" />
                 <span className="sr-only">
                   Remove {value} from {label.toLowerCase()}
                 </span>
@@ -809,7 +859,8 @@ function TokenList({
         ))}
       </ul>
 
-      <div className="mt-2 flex flex-wrap gap-2">
+      {adding || error ? (
+      <div className="mt-3 flex flex-wrap gap-2">
         <label className="min-w-0 flex-1">
           <span className="sr-only">{placeholder}</span>
           <input
@@ -817,6 +868,7 @@ function TokenList({
             placeholder={placeholder}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
+            autoFocus
             onChange={(e) => {
               setNotice('')
               setDraft(e.target.value)
@@ -834,13 +886,23 @@ function TokenList({
         <button
           type="button"
           onClick={add}
-          className="border-line text-ink hover:bg-sunken inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium"
         >
           <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
           Add
           <span className="sr-only"> to {label.toLowerCase()}</span>
         </button>
       </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="text-brand-700 hover:text-brand-800 mt-3 inline-flex items-center gap-1.5 text-sm font-medium"
+        >
+          <Plus className="size-4" strokeWidth={2.4} aria-hidden="true" />
+          {addLabel}
+        </button>
+      )}
 
       {error && (
         <p id={errorId} className="mt-1 text-xs font-medium text-red-700">
@@ -858,6 +920,28 @@ function TokenList({
 
 /* ------------------------------- credentials ------------------------------- */
 
+const relationships = [
+  'Husband',
+  'Wife',
+  'Partner',
+  'Mother',
+  'Father',
+  'Sister',
+  'Brother',
+  'Son',
+  'Daughter',
+  'Friend',
+  'Other',
+]
+
+const monthYear = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+const shortMonth = (iso?: string) =>
+  iso ? monthYear.format(new Date(`${iso}T00:00:00Z`)) : '—'
+
 function Credentials({
   values,
   errors,
@@ -870,144 +954,187 @@ function Credentials({
   nextId: () => string
   onChange: (next: Credential[]) => void
 }) {
+  // Rows read as a table; Edit opens one for changes underneath it.
+  const [open, setOpen] = useState<string | null>(null)
+
   const update = (id: string, patch: Partial<Credential>) =>
     onChange(values.credentials.map((c) => (c.id === id ? { ...c, ...patch } : c)))
 
-  const add = () =>
+  const add = () => {
+    const id = nextId()
     onChange([
       ...values.credentials,
-      {
-        id: nextId(),
-        name: '',
-        kind: 'certification',
-        reference: '',
-        issuedAt: '',
-        expiresAt: '',
-      },
+      { id, name: '', kind: 'certification', reference: '', issuedAt: '', expiresAt: '' },
     ])
+    setOpen(id)
+  }
+
+  const cell = 'text-ink-muted px-4 py-3.5 whitespace-nowrap'
 
   return (
-    <Panel title="Credentials">
-      <p className="text-ink-muted -mt-1 mb-3 text-sm">
-        Compliance on the profile is computed from these expiry dates, so
-        changing one here changes whether this caregiver can be rostered.
-      </p>
+    <section aria-labelledby="edit-certifications" className="card p-5 sm:p-6">
+      <h2 id="edit-certifications" className="text-ink text-base font-semibold tracking-tight">
+        Certifications
+      </h2>
 
-      <ul className="space-y-3">
-        {values.credentials.map((credential) => {
-          const error = errors[`credential-${credential.id}`]
-          return (
-            <li
-              key={credential.id}
-              className={cn(
-                'rounded-xl border p-3',
-                error ? 'border-red-300 bg-red-50/40' : 'border-line',
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Certifications table"
+        className="border-line mt-4 overflow-x-auto rounded-lg border"
+      >
+        <table className="w-full min-w-2xl text-left text-sm">
+          <thead className="border-line bg-sunken text-ink-muted border-b text-xs">
+            <tr>
+              {['Certification', 'License #', 'Issue Date', 'Expiry Date', 'Status', 'Actions'].map(
+                (col) => (
+                  <th
+                    key={col}
+                    scope="col"
+                    className={cn('px-4 py-2.5 font-medium', col === 'Actions' && 'text-right')}
+                  >
+                    {col}
+                  </th>
+                ),
               )}
-            >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Field label="Credential" error={error}>
-                  {(p) => (
-                    <input
-                      {...p}
-                      className={fieldControl}
-                      value={credential.name}
-                      onChange={(e) => update(credential.id, { name: e.target.value })}
-                    />
+            </tr>
+          </thead>
+          <tbody className="divide-line/70 divide-y">
+            {values.credentials.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-ink-muted px-4 py-6 text-center">
+                  No certifications on file.
+                </td>
+              </tr>
+            )}
+            {values.credentials.map((credential) => {
+              const error = errors[`credential-${credential.id}`]
+              const editing = open === credential.id || Boolean(error)
+              const state = credentialLabel(credential.expiresAt || undefined, TODAY)
+              return (
+                <Fragment key={credential.id}>
+                  <tr className={cn(error && 'bg-red-50/40')}>
+                    <th scope="row" className="text-ink px-4 py-3.5 font-semibold">
+                      {credential.name || <span className="text-ink-subtle font-normal">New certification</span>}
+                    </th>
+                    <td className={cell}>{credential.reference || '—'}</td>
+                    <td className={cell}>{shortMonth(credential.issuedAt)}</td>
+                    <td className={cell}>{shortMonth(credential.expiresAt)}</td>
+                    <td className={cell}>
+                      <span
+                        title={state.label}
+                        className={cn(
+                          'inline-flex rounded-md px-2 py-0.5 text-xs font-semibold',
+                          state.tone === 'expired'
+                            ? 'bg-red-50 text-red-700'
+                            : state.tone === 'expiring'
+                              ? 'bg-amber-50 text-amber-800'
+                              : 'bg-emerald-50 text-emerald-700',
+                        )}
+                      >
+                        {state.tone === 'expired'
+                          ? 'Expired'
+                          : state.tone === 'expiring'
+                            ? 'Renewal Due'
+                            : 'Valid'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-4">
+                        <button
+                          type="button"
+                          aria-expanded={editing}
+                          onClick={() => setOpen(editing ? null : credential.id)}
+                          className="text-brand-700 hover:text-brand-800 text-sm font-medium"
+                        >
+                          {editing ? 'Done' : 'Edit'}
+                          <span className="sr-only"> {credential.name || 'certification'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onChange(values.credentials.filter((c) => c.id !== credential.id))
+                          }
+                          className="text-sm font-medium text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                          <span className="sr-only"> {credential.name || 'certification'}</span>
+                        </button>
+                      </span>
+                    </td>
+                  </tr>
+                  {editing && (
+                    <tr className="bg-canvas">
+                      <td colSpan={6} className="px-4 py-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <Field label="Certification" error={error}>
+                            {(p) => (
+                              <input
+                                {...p}
+                                className={fieldControl}
+                                value={credential.name}
+                                onChange={(e) => update(credential.id, { name: e.target.value })}
+                              />
+                            )}
+                          </Field>
+                          <Field label="License #">
+                            {(p) => (
+                              <input
+                                {...p}
+                                className={fieldControl}
+                                value={credential.reference ?? ''}
+                                onChange={(e) =>
+                                  update(credential.id, { reference: e.target.value })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label="Issue Date">
+                            {(p) => (
+                              <input
+                                {...p}
+                                type="date"
+                                className={fieldControl}
+                                value={credential.issuedAt ?? ''}
+                                onChange={(e) =>
+                                  update(credential.id, { issuedAt: e.target.value })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label="Expiry Date" error={error}>
+                            {(p) => (
+                              <input
+                                {...p}
+                                type="date"
+                                className={fieldControl}
+                                value={credential.expiresAt ?? ''}
+                                onChange={(e) =>
+                                  update(credential.id, { expiresAt: e.target.value })
+                                }
+                              />
+                            )}
+                          </Field>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </Field>
-                <Field label="Reference">
-                  {(p) => (
-                    <input
-                      {...p}
-                      className={fieldControl}
-                      value={credential.reference ?? ''}
-                      onChange={(e) =>
-                        update(credential.id, { reference: e.target.value })
-                      }
-                    />
-                  )}
-                </Field>
-                <Field label="Issued">
-                  {(p) => (
-                    <input
-                      {...p}
-                      type="date"
-                      className={fieldControl}
-                      value={credential.issuedAt ?? ''}
-                      onChange={(e) =>
-                        update(credential.id, { issuedAt: e.target.value })
-                      }
-                    />
-                  )}
-                </Field>
-                <Field label="Expires" error={error}>
-                  {(p) => (
-                    <input
-                      {...p}
-                      type="date"
-                      className={fieldControl}
-                      value={credential.expiresAt ?? ''}
-                      onChange={(e) =>
-                        update(credential.id, { expiresAt: e.target.value })
-                      }
-                    />
-                  )}
-                </Field>
-              </div>
-
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs">
-                  <CredentialState expiresAt={credential.expiresAt} />
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChange(values.credentials.filter((c) => c.id !== credential.id))
-                  }
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="size-3.5" strokeWidth={1.9} aria-hidden="true" />
-                  Remove
-                  <span className="sr-only"> {credential.name || 'credential'}</span>
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <button
         type="button"
         onClick={add}
-        className="border-line text-ink hover:bg-sunken mt-3 inline-flex h-10 items-center gap-1.5 rounded-lg border px-4 text-sm font-medium"
+        className="border-control text-ink hover:bg-sunken mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg border px-4 text-sm font-medium"
       >
         <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
-        Add credential
+        Add Certification
       </button>
-    </Panel>
-  )
-}
-
-/**
- * Recomputed as the date changes, so the effect of an edit is visible at once.
- * Against `TODAY`, not the wall clock — every other screen reads the fixed
- * sample clock, and a row calling a credential Valid while the warning above
- * called it expiring was two facts disagreeing on one screen.
- */
-function CredentialState({ expiresAt }: { expiresAt?: string }) {
-  const { label, tone } = credentialLabel(expiresAt, TODAY)
-  return (
-    <span
-      className={cn(
-        tone === 'expired'
-          ? 'font-medium text-red-700'
-          : tone === 'expiring'
-            ? 'font-medium text-amber-700'
-            : 'text-ink-subtle',
-      )}
-    >
-      {label}
-    </span>
+    </section>
   )
 }
 
@@ -1031,6 +1158,7 @@ function Availability({
   maxError?: string
 }) {
   const windowFor = (day: Weekday) => values.availability.find((w) => w.day === day)
+  const [editingDay, setEditingDay] = useState<Weekday | null>(null)
 
   const toggle = (day: Weekday) => {
     const existing = windowFor(day)
@@ -1039,6 +1167,7 @@ function Availability({
       return
     }
     onChange([...values.availability, { day, start: '09:00', end: '17:00' }])
+    setEditingDay(day)
   }
 
   const update = (day: Weekday, patch: Partial<FormValues['availability'][number]>) =>
@@ -1048,38 +1177,65 @@ function Availability({
   const over = !Number.isNaN(max) && max > 0 && offered > max
 
   return (
-    <Panel title="Availability">
-      <fieldset>
-        <legend className="text-ink-muted mb-2 text-xs font-medium">
-          Weekly availability
+    <section aria-labelledby="edit-availability" className="card p-5 sm:p-6">
+      <h2 id="edit-availability" className="text-ink text-base font-semibold tracking-tight">
+        Availability Preferences
+      </h2>
+      <fieldset className="mt-4">
+        <legend className="text-ink-muted mb-2 text-sm font-medium">
+          Weekly Availability Grid
         </legend>
-        <ul className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
           {weekdays.map((day) => {
             const window = windowFor(day)
             const error = errors[`availability-${day}`]
+            const editing = window && (editingDay === day || Boolean(error))
             return (
               <li
                 key={day}
                 className={cn(
-                  'rounded-xl border p-3',
-                  error ? 'border-red-300' : window ? 'border-brand-200 bg-brand-50/40' : 'border-line',
+                  'min-w-0 rounded-xl border px-3.5 py-3',
+                  error
+                    ? 'border-red-300 bg-red-50/40'
+                    : window
+                      ? 'border-brand-500 bg-brand-50/50'
+                      : 'border-line bg-sunken',
                 )}
               >
-                <label className="flex items-center gap-2">
+                {/* The dot is the switch: a real checkbox under it. */}
+                <label className="flex cursor-pointer items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      'text-base font-semibold',
+                      window ? 'text-brand-700' : 'text-ink-muted',
+                    )}
+                  >
+                    {day}
+                  </span>
                   <input
                     type="checkbox"
                     checked={Boolean(window)}
                     onChange={() => toggle(day)}
-                    className="accent-brand-600 size-4"
+                    className="peer sr-only"
                   />
-                  <span className="text-ink text-sm font-semibold">{day}</span>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'size-2.5 rounded-full peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-600',
+                      window ? 'bg-emerald-500' : 'bg-ink-subtle',
+                    )}
+                  />
+                  <span className="sr-only">Available on {day}</span>
                 </label>
 
-                {window ? (
-                  /* Stacked below 420px: two time inputs side by side fall
-                     under the intrinsic width of hh:mm AM/PM at 320. */
-                  <div className="mt-2 flex flex-col gap-1.5 min-[420px]:flex-row min-[420px]:items-center">
-                    <label className="min-w-0 flex-1">
+                <p className={cn('mt-2 text-xs', window ? 'text-ink-muted' : 'text-ink-subtle')}>
+                  Hours
+                </p>
+                {!window ? (
+                  <p className="text-ink-subtle text-sm font-semibold">Not Available</p>
+                ) : editing ? (
+                  <div className="mt-1 space-y-1.5">
+                    <label className="block">
                       <span className="sr-only">{day} start time</span>
                       <input
                         type="time"
@@ -1087,16 +1243,10 @@ function Availability({
                         aria-invalid={error ? true : undefined}
                         aria-describedby={error ? `availability-${day}` : undefined}
                         onChange={(e) => update(day, { start: e.target.value })}
-                        className="border-line focus:border-brand-500 h-9 w-full rounded-lg border px-2 text-sm"
+                        className="border-control focus:border-brand-500 h-8 w-full rounded-md border bg-white px-2 text-xs"
                       />
                     </label>
-                    <span
-                      className="text-ink-subtle hidden text-xs min-[420px]:inline"
-                      aria-hidden="true"
-                    >
-                      –
-                    </span>
-                    <label className="min-w-0 flex-1">
+                    <label className="block">
                       <span className="sr-only">{day} finish time</span>
                       <input
                         type="time"
@@ -1104,19 +1254,32 @@ function Availability({
                         aria-invalid={error ? true : undefined}
                         aria-describedby={error ? `availability-${day}` : undefined}
                         onChange={(e) => update(day, { end: e.target.value })}
-                        className="border-line focus:border-brand-500 h-9 w-full rounded-lg border px-2 text-sm"
+                        className="border-control focus:border-brand-500 h-8 w-full rounded-md border bg-white px-2 text-xs"
                       />
                     </label>
+                    {!error && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingDay(null)}
+                        className="text-brand-700 text-xs font-medium"
+                      >
+                        Done
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-ink-subtle mt-2 text-xs">Not available</p>
+                  <button
+                    type="button"
+                    onClick={() => setEditingDay(day)}
+                    className="text-ink hover:text-brand-700 text-left text-sm font-semibold"
+                  >
+                    {formatTime(window.start)} - {formatTime(window.end)}
+                    <span className="sr-only">, change {day} hours</span>
+                  </button>
                 )}
 
                 {error && (
-                  <p
-                    id={`availability-${day}`}
-                    className="mt-1 text-xs font-medium text-red-700"
-                  >
+                  <p id={`availability-${day}`} className="mt-1 text-xs font-medium text-red-700">
                     {error}
                   </p>
                 )}
@@ -1126,14 +1289,14 @@ function Availability({
         </ul>
       </fieldset>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
         <Field
-          label="Maximum hours a week"
+          label="Maximum Hours Per Week"
           error={maxError}
           hint={
             over
-              ? `${offered} hours offered by the grid above — ${offered - max} beyond this contract.`
-              : `${offered} hours offered by the grid above.`
+              ? `The grid above offers ${offered} hours — ${offered - max} beyond this.`
+              : undefined
           }
         >
           {(p) => (
@@ -1146,7 +1309,7 @@ function Availability({
             />
           )}
         </Field>
-        <Field label="Preferred shift">
+        <Field label="Preferred Shift">
           {(p) => (
             <select
               {...p}
@@ -1161,7 +1324,6 @@ function Availability({
           )}
         </Field>
       </div>
-
-    </Panel>
+    </section>
   )
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { NotebookPen, Search } from 'lucide-react'
+import { ArrowUpDown, NotebookPen, Search, UserRound } from 'lucide-react'
 import type { RecipientProfile } from '../profile-data'
 import {
   NOTES_PAGE_SIZE,
@@ -53,7 +53,10 @@ export function NotesTab() {
     return notes.filter((n) => {
       if (author !== 'all' && n.author !== author) return false
       if (!q) return true
-      return [n.body, n.author, n.authorRole].join(' ').toLowerCase().includes(q)
+      return [n.body, n.author, n.authorRole]
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
     })
   }, [notes, author, query])
 
@@ -179,52 +182,67 @@ export function NotesTab() {
         </div>
       </section>
 
-      <div
-        role="group"
-        aria-label="Filter notes by category"
-        className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1"
-      >
-        {(
-          [
-            { value: 'all' as const, label: 'All' },
-            ...noteCategories.map((c) => ({ value: c.value, label: c.label })),
-          ] satisfies { value: CategoryFilter; label: string }[]
-        ).map(({ value, label }) => {
-          const selected = category === value
-          const count =
-            value === 'all' ? beforeCategory.length : counts[value]
-          return (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => reset(setCategory)(value)}
-              className={cn(
-                'inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
-                selected
-                  ? 'bg-brand-600 text-white'
-                  : 'text-ink-muted hover:bg-sunken',
-              )}
-            >
-              {label}
-              <span
+      {/* Chips, search and the two selects are one row in the design, so they
+          share a single wrapping flex line rather than sitting in two stacked
+          rows. The search grows into whatever is left and shrinks before the
+          line breaks, which keeps it on one line down to tablet widths. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          role="group"
+          aria-label="Filter notes by category"
+          className="flex flex-wrap items-center gap-2"
+        >
+          {(
+            [
+              { value: 'all' as const, label: 'All' },
+              ...noteCategories.map((c) => ({
+                value: c.value,
+                label: c.label,
+              })),
+            ] satisfies { value: CategoryFilter; label: string }[]
+          ).map(({ value, label }) => {
+            const selected = category === value
+            const count =
+              value === 'all' ? beforeCategory.length : counts[value]
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => reset(setCategory)(value)}
+                // Outlined when idle, filled when chosen, and the count is a
+                // badge either way — as plain text beside the label it read as
+                // part of the category's name.
                 className={cn(
-                  'text-xs tabular-nums',
-                  selected ? 'text-white' : 'text-ink-subtle',
+                  'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-sm font-medium transition-colors sm:min-h-9.5',
+                  selected
+                    ? 'border-brand-600 bg-brand-600 text-white'
+                    : 'border-control bg-surface text-ink hover:bg-sunken',
                 )}
               >
-                {count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+                {label}
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+                    selected
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-sunken text-ink-muted',
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="relative lg:w-72">
+        {/* A small basis, not a min-width: flex wraps on the basis before it
+            shrinks anything, so a roomy one would push Sort onto a second line
+            at 1280px of content. It grows into whatever is left instead. */}
+        <div className="relative w-full sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-32">
           <Search
             aria-hidden="true"
-            className="text-ink-subtle pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+            className="text-ink-subtle pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
             strokeWidth={1.8}
           />
           <input
@@ -233,24 +251,28 @@ export function NotesTab() {
             onChange={(e) => reset(setQuery)(e.target.value)}
             aria-label="Search care notes"
             placeholder="Search care notes..."
-            className="border-line bg-surface text-ink placeholder:text-ink-subtle focus:border-brand-400 h-10 w-full rounded-lg border pr-3 pl-9 text-sm"
+            className="border-control bg-surface text-ink placeholder:text-ink-subtle focus:border-brand-400 h-11 w-full rounded-lg border pr-3 pl-8.5 text-sm sm:h-9.5"
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
-          <SelectFilter
-            label="Author"
-            value={author}
-            onChange={reset(setAuthor)}
-            options={authorOptions}
-          />
-          <SelectFilter
-            label="Sort"
-            value={sort}
-            onChange={(v) => reset(setSort)(v as NoteSort)}
-            options={noteSortOptions}
-          />
-        </div>
+        <SelectFilter
+          label="Author"
+          chip
+          icon={UserRound}
+          value={author}
+          onChange={reset(setAuthor)}
+          options={authorOptions}
+          className="grow sm:grow-0"
+        />
+        <SelectFilter
+          label="Sort"
+          chip
+          icon={ArrowUpDown}
+          value={sort}
+          onChange={(v) => reset(setSort)(v as NoteSort)}
+          options={noteSortOptions}
+          className="grow sm:grow-0"
+        />
       </div>
 
       {/* Filtering otherwise changes the result set silently */}
@@ -288,7 +310,9 @@ export function NotesTab() {
         <div className="text-center">
           <button
             type="button"
-            onClick={() => remaining > 0 && setVisible((v) => v + NOTES_PAGE_SIZE)}
+            onClick={() =>
+              remaining > 0 && setVisible((v) => v + NOTES_PAGE_SIZE)
+            }
             aria-disabled={remaining === 0}
             className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center rounded-lg border px-4 text-sm font-medium transition-colors aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
           >

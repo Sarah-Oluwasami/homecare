@@ -124,7 +124,7 @@ export function InvoiceTable({
                 <td className="px-4 py-3 text-right">
                   <button
                     type="button"
-                    className="border-line text-ink hover:bg-sunken h-9 rounded-lg border px-3 text-sm font-medium"
+                    className="border-control text-ink hover:bg-sunken h-9 rounded-lg border px-3 text-sm font-medium"
                   >
                     View<span className="sr-only"> {inv.number}</span>
                   </button>

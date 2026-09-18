@@ -50,8 +50,13 @@ const statusOptions: RequestStatus[] = [
 
 const priorityOptions: Priority[] = ['high', 'medium', 'low']
 
-function isOneOf<T extends string>(value: string | null, list: readonly T[]): T | 'all' {
-  return value && (list as readonly string[]).includes(value) ? (value as T) : 'all'
+function isOneOf<T extends string>(
+  value: string | null,
+  list: readonly T[],
+): T | 'all' {
+  return value && (list as readonly string[]).includes(value)
+    ? (value as T)
+    : 'all'
 }
 
 export function CareRequestsPage() {
@@ -67,8 +72,8 @@ export function CareRequestsPage() {
     params.get('plan'),
     plans.map((p) => p.id),
   )
-  const sort = (sortOptions.find((o) => o.value === params.get('sort'))?.value ??
-    'priority') as RequestSort
+  const sort = (sortOptions.find((o) => o.value === params.get('sort'))
+    ?.value ?? 'priority') as RequestSort
   // Floored: "?page=2.5" otherwise survived the clamp and produced a page
   // number no pagination control could match.
   const page = Math.max(1, Math.floor(Number(params.get('page') ?? '1')) || 1)
@@ -138,33 +143,56 @@ export function CareRequestsPage() {
   ).length
 
   const tiles = [
-    { id: 'ready', label: 'Ready to approve', value: counts.ready, hint: 'Nothing outstanding' },
-    { id: 'ours', label: 'Waiting on us', value: withUs, hint: 'Assignment or a clearing deposit' },
-    { id: 'family', label: 'Waiting on the family', value: withFamily, hint: 'Documents, payment or plan' },
-    { id: 'mismatch', label: 'Plan mismatches', value: mismatched, hint: 'Rota or services not covered' },
+    {
+      id: 'ready',
+      label: 'Ready to approve',
+      value: counts.ready,
+      hint: 'Nothing outstanding',
+    },
+    {
+      id: 'ours',
+      label: 'Waiting on us',
+      value: withUs,
+      hint: 'Assignment or a clearing deposit',
+    },
+    {
+      id: 'family',
+      label: 'Waiting on the family',
+      value: withFamily,
+      hint: 'Documents, payment or plan',
+    },
+    {
+      id: 'mismatch',
+      label: 'Plan mismatches',
+      value: mismatched,
+      hint: 'Rota or services not covered',
+    },
   ]
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-ink text-2xl font-bold tracking-tight">Care Requests</h1>
+          <h1 className="text-ink text-2xl font-bold tracking-tight">
+            Care Requests
+          </h1>
           <p className="text-ink-muted mt-1 text-sm">
-            Evaluate and process family-selected care plans awaiting verification
-            and clinical assignment. An approved request becomes a care recipient.
+            Evaluate and process family-selected care plans awaiting
+            verification and clinical assignment. An approved request becomes a
+            care recipient.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
             <Layers className="size-4" strokeWidth={1.9} aria-hidden="true" />
             Bulk actions
           </button>
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
             <Download className="size-4" strokeWidth={1.9} aria-hidden="true" />
             Export
@@ -194,11 +222,13 @@ export function CareRequestsPage() {
       </section>
 
       {/* The queue is the page; the record is the follow-up. Side by side where
-          there is room, stacked below it where there isn't. */}
-      {/* The split only earns its keep once the table still fits beside the
-          aside; below that the aside stacks, or widening the window would make
-          the table start scrolling. */}
-      <div className="grid grid-cols-1 items-start gap-4 min-[1730px]:grid-cols-[minmax(0,1fr)_26rem]">
+          there is room, stacked below it where there isn't.
+          The old 1730px threshold put the split one pixel out of reach of a
+          16-inch laptop (1728px), so an opened request always landed below the
+          fold. It now splits at 1600px with a narrower rail, which the table's
+          min-content width — 1020px once the secondary lines in Family and
+          Requested plan are allowed to wrap — leaves room for. */}
+      <div className="grid grid-cols-1 items-start gap-4 min-[1600px]:grid-cols-[minmax(0,1fr)_22rem] min-[1850px]:grid-cols-[minmax(0,1fr)_26rem]">
         <Panel title="Request queue" flush>
           <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
             <label className="min-w-0 flex-1">
@@ -217,7 +247,10 @@ export function CareRequestsPage() {
               onChange={(v) => setParam('status', v === 'all' ? null : v)}
               options={[
                 { value: 'all', label: 'All statuses' },
-                ...statusOptions.map((s) => ({ value: s, label: statusLabels[s] })),
+                ...statusOptions.map((s) => ({
+                  value: s,
+                  label: statusLabels[s],
+                })),
               ]}
             />
             <SelectFilter
@@ -226,7 +259,10 @@ export function CareRequestsPage() {
               onChange={(v) => setParam('priority', v === 'all' ? null : v)}
               options={[
                 { value: 'all', label: 'All priorities' },
-                ...priorityOptions.map((p) => ({ value: p, label: priorityLabels[p] })),
+                ...priorityOptions.map((p) => ({
+                  value: p,
+                  label: priorityLabels[p],
+                })),
               ]}
             />
             <SelectFilter
@@ -261,20 +297,31 @@ export function CareRequestsPage() {
                 aria-label="Care requests table"
                 className="hidden overflow-x-auto xl:block"
               >
+                {/* px-3 rather than the px-4 the app's other tables use: this
+                    is the widest table here at eight columns, and the 64px it
+                    saves is what lets it sit beside the detail rail on a
+                    16-inch laptop instead of scrolling. */}
                 <table className="w-full min-w-4xl text-left text-sm">
                   <thead className="border-line bg-sunken text-ink-muted border-y text-xs">
                     <tr>
-                      {['Reference', 'Family', 'Requested plan', 'Priority', 'Payment', 'Documents', 'Coordinator', 'Status'].map(
-                        (col) => (
-                          <th
-                            key={col}
-                            scope="col"
-                            className="px-4 py-2.5 font-semibold tracking-wide uppercase"
-                          >
-                            {col}
-                          </th>
-                        ),
-                      )}
+                      {[
+                        'Reference',
+                        'Family',
+                        'Requested plan',
+                        'Priority',
+                        'Payment',
+                        'Documents',
+                        'Coordinator',
+                        'Status',
+                      ].map((col) => (
+                        <th
+                          key={col}
+                          scope="col"
+                          className="px-3 py-2.5 font-semibold tracking-wide uppercase"
+                        >
+                          {col}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-line divide-y">
@@ -313,20 +360,25 @@ export function CareRequestsPage() {
           )}
         </Panel>
 
-        {selected ? (
-          <RequestDetail
-            request={selected}
-            closeTo={`/care-recipients/requests${suffix}`}
-          />
-        ) : (
-          <div className="card text-ink-subtle p-6 text-sm">
-            <p className="font-medium">No request open.</p>
-            <p className="mt-1">
-              Pick a reference from the queue to see the patient, the family
-              contact, the requested rota and what is blocking approval.
-            </p>
-          </div>
-        )}
+        {/* Sticky beside the queue so paging through the table never scrolls
+            the open record out of view; it scrolls itself when it is taller
+            than the window. Below the split it is a plain block again. */}
+        <div className="min-[1600px]:sticky min-[1600px]:top-6 min-[1600px]:max-h-[calc(100vh-3rem)] min-[1600px]:overflow-y-auto">
+          {selected ? (
+            <RequestDetail
+              request={selected}
+              closeTo={`/care-recipients/requests${suffix}`}
+            />
+          ) : (
+            <div className="card text-ink-subtle p-6 text-sm">
+              <p className="font-medium">No request open.</p>
+              <p className="mt-1">
+                Pick a reference from the queue to see the patient, the family
+                contact, the requested rota and what is blocking approval.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <p className="text-ink-subtle text-xs">
@@ -361,21 +413,33 @@ function QueueRow({
   return (
     <tr
       aria-current={selected ? 'true' : undefined}
-      className={cn('transition-colors', selected ? 'bg-brand-50' : 'hover:bg-canvas')}
+      className={cn(
+        'transition-colors',
+        selected ? 'bg-brand-50' : 'hover:bg-canvas',
+      )}
     >
-      <th scope="row" className="px-4 py-3 font-normal whitespace-nowrap">
-        <Link to={to} className="text-brand-700 hover:text-brand-800 font-medium">
+      <th scope="row" className="px-3 py-3 font-normal whitespace-nowrap">
+        <Link
+          to={to}
+          className="text-brand-700 hover:text-brand-800 font-medium"
+        >
           {request.ref}
         </Link>
       </th>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className="text-ink">{familyNameFor(request.patient.name)}</span>
+      {/* nowrap on the name, not the cell: the secondary line is the long one,
+          and letting it wrap is what keeps the table beside the detail rail. */}
+      <td className="px-3 py-3">
+        <span className="text-ink whitespace-nowrap">
+          {familyNameFor(request.patient.name)}
+        </span>
         <span className="text-ink-subtle block text-xs">
           {request.patient.name} ({request.patient.age})
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className="text-ink-muted">{planById[request.planId].name}</span>
+      <td className="px-3 py-3">
+        <span className="text-ink-muted whitespace-nowrap">
+          {planById[request.planId].name}
+        </span>
         {!fit.fits && (
           <span className="block text-xs font-semibold text-red-700">
             {fit.requestedHours}h a month requested, {fit.allowanceHours}h
@@ -388,30 +452,30 @@ function QueueRow({
           </span>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <span className={cn(chip, tonePill[priorityTones[priority]])}>
           {priorityLabels[priority]}
         </span>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <span className={cn(chip, tonePill[paymentTones[request.payment]])}>
           {paymentLabels[request.payment]}
         </span>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <span className={cn(chip, tonePill[docsTones[docs]])}>
           {docsLabels[docs]}
         </span>
       </td>
       <td
         className={cn(
-          'px-4 py-3 whitespace-nowrap',
+          'px-3 py-3',
           request.coordinator ? 'text-ink-muted' : 'text-ink-subtle',
         )}
       >
         {request.coordinator ?? 'Unassigned'}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <span className={cn(chip, tonePill[statusTones[status]])}>
           {statusLabels[status]}
         </span>

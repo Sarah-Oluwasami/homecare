@@ -1,15 +1,20 @@
-import { useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
 import {
-  CalendarPlus,
+  Calendar,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Download,
+  Clock,
+  Funnel,
+  Plus,
+  Search,
+  Trash2,
   TriangleAlert,
-  UserPlus,
+  UserRound,
 } from 'lucide-react'
 import {
-  NOW,
   TODAY,
   addDays,
   allUnassigned,
@@ -30,7 +35,11 @@ import type { BoardVisit } from '@/features/scheduling/board-data'
 import { weekDates } from '@/features/caregivers/schedule-data'
 import { Panel } from '@/components/ui/Panel'
 import { Avatar } from '@/components/ui/Avatar'
-import { PriorityBadge, VisitStatusBadge } from '@/components/ui/StatusBadge'
+import { DropdownMenu } from '@/components/ui/DropdownMenu'
+import type { MenuItem } from '@/components/ui/DropdownMenu'
+import { Pagination } from '@/components/ui/Pagination'
+import { SelectFilter } from '@/components/ui/SelectFilter'
+import { PriorityBadge } from '@/components/ui/StatusBadge'
 import { tonePill } from '@/lib/tone'
 import { cn } from '@/lib/cn'
 
@@ -46,10 +55,10 @@ function bookable(visit: BoardVisit): boolean {
 }
 
 const views = [
-  { slug: 'day', label: 'Day' },
-  { slug: 'week', label: 'Week' },
-  { slug: 'unassigned', label: 'Unassigned' },
-  { slug: 'conflicts', label: 'Conflicts' },
+  { slug: 'day', label: "Today's Schedule" },
+  { slug: 'week', label: 'Calendar' },
+  { slug: 'unassigned', label: 'Unassigned Visits' },
+  { slug: 'conflicts', label: 'Conflicts & Alerts' },
 ] as const
 
 type View = (typeof views)[number]['slug']
@@ -77,59 +86,60 @@ export function SchedulingPage() {
   // Hints follow the selected date. "Finished earlier today" under a heading
   // reading Saturday the 25th was two facts contradicting each other.
   const isToday = date === TODAY
-  const past = date < TODAY
-  const when = isToday ? 'today' : past ? 'that day' : 'that day'
+  const assigned = stats.total - stats.unassigned
+  const allOverlaps =
+    conflicts.length > 0 && conflicts.every((c) => c.kind === 'overlap')
 
   const tiles = [
     {
       id: 'total',
-      label: 'Visits on the board',
+      label: isToday ? "Today's visits" : 'Visits',
       value: stats.total,
-      hint: `${stats.onDuty} caregiver${stats.onDuty === 1 ? '' : 's'} on duty`,
-    },
-    {
-      id: 'progress',
-      label: 'In progress',
-      value: stats.inProgress,
-      hint: isToday ? `As at ${formatTime(NOW)}` : 'Not the current day',
-    },
-    {
-      id: 'completed',
-      label: 'Completed',
-      value: stats.completed,
-      hint: isToday ? 'Finished earlier today' : `Finished ${when}`,
+      // Only "Assigned" when every visit has a caregiver; otherwise say how many.
+      hint:
+        stats.unassigned === 0
+          ? isToday
+            ? 'Assigned today'
+            : 'All assigned'
+          : `${assigned} assigned`,
     },
     {
       id: 'upcoming',
-      label: 'Still to come',
+      label: 'Upcoming visits',
       value: stats.upcoming,
-      hint: isToday ? 'Later today' : `Rostered ${when}`,
+      hint: 'Pending start',
     },
     {
-      id: 'unlogged',
-      label: 'Not written up',
-      value: stats.unlogged,
-      hint:
-        stats.unlogged > 0
-          ? 'Window closed, no visit record'
-          : 'Every closed window is recorded',
+      id: 'available',
+      label: 'Available caregivers',
+      value: stats.availableCaregivers,
+      hint: 'Ready for dispatch',
     },
     {
       id: 'unassigned',
-      label: 'Unassigned',
+      label: 'Unassigned visits',
       value: stats.unassigned,
-      hint:
-        stats.unassigned > 0
-          ? `Needs a caregiver ${when}`
-          : `All covered ${when}`,
+      hint: stats.unassigned > 0 ? 'Immediate action needed' : 'All covered',
       view: 'unassigned' as View,
     },
     {
       id: 'conflicts',
-      label: 'Conflicts',
+      label: 'Schedule conflicts',
       value: stats.conflicts,
-      hint: stats.conflicts > 0 ? 'Needs attention' : 'Nothing flagged',
+      // Conflicts are not all overlaps, so the Figma hint is used only when true.
+      hint:
+        stats.conflicts === 0
+          ? 'Nothing flagged'
+          : allOverlaps
+            ? 'Overlap detected'
+            : 'Needs attention',
       view: 'conflicts' as View,
+    },
+    {
+      id: 'completed',
+      label: 'Completed visits',
+      value: stats.completed,
+      hint: 'Shift reports finalized',
     },
   ]
 
@@ -139,18 +149,15 @@ export function SchedulingPage() {
         <div className="min-w-0">
           <h1 className="text-ink text-2xl font-bold tracking-tight">Scheduling</h1>
           <p className="text-ink-muted mt-1 text-sm">
-            Every caregiver&rsquo;s rota in one place. The board reads the same
-            projection each caregiver&rsquo;s own Schedule tab does, so a visit
-            cannot appear on one and not the other.
+            Plan, assign and monitor caregiver visits across the organization.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
-            <Download className="size-4" strokeWidth={1.9} aria-hidden="true" />
-            Export
+            Export Schedule
           </button>
           {/* Assigning needs a visit to assign to, so this goes to the queue
               of visits that need one rather than nowhere. */}
@@ -158,34 +165,19 @@ export function SchedulingPage() {
             to="/scheduling?view=unassigned"
             className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
-            <UserPlus className="size-4" strokeWidth={1.9} aria-hidden="true" />
-            Fill unassigned visits
+            Assign Caregiver
           </Link>
           <button
             type="button"
             className="bg-brand-600 hover:bg-brand-700 inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
           >
-            <CalendarPlus className="size-4" strokeWidth={1.9} aria-hidden="true" />
-            Schedule visit
+            <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
+            Schedule Visit
           </button>
         </div>
       </header>
 
-      <section aria-labelledby="board-totals">
-        {/* Weekday and month come from the date itself; the source design
-            printed "Julyober 24" and called a Friday a Thursday. */}
-        <h2
-          id="board-totals"
-          className="text-ink mb-3 text-base font-semibold tracking-tight"
-        >
-          {formatFullDay(date)}
-          {date === TODAY && (
-            <span className="text-ink-muted ml-2 text-sm font-normal">
-              today, as at {formatTime(NOW)}
-            </span>
-          )}
-        </h2>
-
+      <section aria-label="Schedule totals">
         <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {tiles.map((t) => {
             // `span`, not `p`: these render inside a button for the two tiles
@@ -224,7 +216,7 @@ export function SchedulingPage() {
       <div
         role="group"
         aria-label="Choose a view"
-        className="no-scrollbar flex gap-1.5 overflow-x-auto"
+        className="no-scrollbar flex gap-3 overflow-x-auto"
       >
         {views.map((v) => {
           const active = v.slug === view
@@ -243,13 +235,20 @@ export function SchedulingPage() {
               aria-pressed={active}
               onClick={() => setParam('view', v.slug === 'day' ? null : v.slug)}
               className={cn(
-                'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors',
-                active ? 'bg-brand-600 text-white' : 'text-ink-muted hover:bg-sunken',
+                'inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors',
+                active
+                  ? 'border-brand-600 bg-brand-600 text-white'
+                  : 'border-control text-ink hover:bg-sunken',
               )}
             >
-              {v.slug === 'unassigned' ? 'Unassigned, all dates' : v.label}
+              {v.slug === 'day' && !isToday ? 'Day Schedule' : v.label}
               {count !== null && (
-                <span className={active ? 'text-white' : 'text-ink-subtle'}>
+                <span
+                  className={cn(
+                    'rounded px-1.5 text-xs tabular-nums',
+                    active ? 'bg-white/20 text-white' : 'bg-sunken text-ink-muted',
+                  )}
+                >
                   {count}
                 </span>
               )}
@@ -269,22 +268,127 @@ export function SchedulingPage() {
         />
       )}
 
-      {view === 'day' && <DayBoard date={date} visits={visits} />}
+      {view === 'day' && <DayBoard key={date} date={date} visits={visits} />}
       {view === 'week' && <WeekBoard date={date} />}
       {view === 'unassigned' && <UnassignedQueue visits={outstanding} date={date} />}
       {view === 'conflicts' && <ConflictList conflicts={conflicts} date={date} />}
 
-      <p className="text-ink-subtle text-xs">
-        {stats.availableCaregivers} caregiver
-        {stats.availableCaregivers === 1 ? ' is' : 's are'} available to dispatch
-        on {formatFullDay(date)} — active caregivers with a window set and no
-        lapsed credential.{' '}
-        <Link to="/caregivers?sort=compliance" className="text-brand-700">
-          Check the roster
-        </Link>
-        .
-      </p>
+      <QuickOperations
+        onPickVisit={() => {
+          // Rescheduling and cancelling start from a visit, so these open the
+          // day's table rather than a form with no visit in it.
+          setParam('view', null)
+          requestAnimationFrame(() =>
+            document
+              .getElementById('day-board-title')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+          )
+        }}
+      />
     </div>
+  )
+}
+
+/* ----------------------------- quick operations ---------------------------- */
+
+const opCard =
+  'group flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors'
+
+function OpBody({
+  icon: Icon,
+  iconClass,
+  title,
+  hint,
+  primary,
+}: {
+  icon: LucideIcon
+  iconClass: string
+  title: string
+  hint: string
+  primary?: boolean
+}) {
+  return (
+    <>
+      <span className={cn('grid size-10 shrink-0 place-items-center rounded-lg', iconClass)}>
+        <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
+      </span>
+      <span className="min-w-0 grow">
+        <span
+          className={cn(
+            'block text-base leading-tight font-semibold tracking-tight',
+            primary ? 'text-white' : 'text-ink',
+          )}
+        >
+          {title}
+        </span>
+        <span
+          className={cn(
+            'mt-0.5 block text-[0.8125rem]',
+            primary ? 'text-white/85' : 'text-ink-muted',
+          )}
+        >
+          {hint}
+        </span>
+      </span>
+      <ChevronRight
+        className={cn(
+          'size-5 shrink-0 transition-transform group-hover:translate-x-0.5',
+          primary ? 'text-white' : 'text-ink-subtle',
+        )}
+        strokeWidth={2}
+        aria-hidden="true"
+      />
+    </>
+  )
+}
+
+function QuickOperations({ onPickVisit }: { onPickVisit: () => void }) {
+  const secondary = cn(opCard, 'card hover:border-brand-300')
+  return (
+    <section aria-labelledby="quick-ops" className="space-y-3">
+      <h2 id="quick-ops" className="text-ink text-base font-semibold tracking-tight">
+        Quick Operations
+      </h2>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4">
+        {/* Same as the header's Schedule Visit — there is no create flow yet. */}
+        <button
+          type="button"
+          className={cn(opCard, 'bg-brand-600 hover:bg-brand-700 border-transparent')}
+        >
+          <OpBody
+            primary
+            icon={Calendar}
+            iconClass="bg-white/15 text-white"
+            title="Schedule Visit"
+            hint="Create a new client shift"
+          />
+        </button>
+        <Link to="/scheduling?view=unassigned" className={secondary}>
+          <OpBody
+            icon={UserRound}
+            iconClass="bg-blue-50 text-blue-600"
+            title="Assign Caregiver"
+            hint="Match a caregiver to a visit"
+          />
+        </Link>
+        <button type="button" onClick={onPickVisit} className={secondary}>
+          <OpBody
+            icon={Clock}
+            iconClass="bg-amber-100 text-amber-600"
+            title="Reschedule Visit"
+            hint="Change times or dates"
+          />
+        </button>
+        <button type="button" onClick={onPickVisit} className={secondary}>
+          <OpBody
+            icon={Trash2}
+            iconClass="bg-sunken text-ink-muted"
+            title="Cancel Visit"
+            hint="Revoke scheduled session"
+          />
+        </button>
+      </div>
+    </section>
   )
 }
 
@@ -347,136 +451,309 @@ function DateNav({
   )
 }
 
-function DayBoard({ date, visits }: { date: string; visits: BoardVisit[] }) {
+type RowState =
+  | 'unassigned'
+  | 'unlogged'
+  | 'completed'
+  | 'in-progress'
+  | 'upcoming'
+  | 'cancelled'
+
+/** One state per row, so the status column and the filter agree. */
+function rowState(visit: BoardVisit): RowState {
+  if (visit.status === 'cancelled') return 'cancelled'
+  if (visit.status === 'completed') return 'completed'
+  if (!visit.caregiverId) return 'unassigned'
+  if (isUnlogged(visit)) return 'unlogged'
+  if (visit.status === 'in-progress') return 'in-progress'
+  return 'upcoming'
+}
+
+const rowStateLabels: Record<RowState, string> = {
+  unassigned: 'Unassigned',
+  unlogged: 'Not written up',
+  completed: 'Completed',
+  'in-progress': 'In Progress',
+  upcoming: 'Upcoming',
+  cancelled: 'Cancelled',
+}
+
+// Local to this board: the Figma draws Completed in the brand tint here,
+// where the rest of the app uses green.
+const rowStateStyles: Record<RowState, string> = {
+  unassigned: 'bg-red-50 text-red-700',
+  unlogged: 'bg-sunken text-ink-muted',
+  completed: 'bg-brand-50 text-brand-700',
+  'in-progress': 'bg-blue-50 text-blue-700',
+  upcoming: 'bg-sunken text-ink-muted',
+  cancelled: 'bg-sunken text-ink-muted',
+}
+
+function RowStatus({ visit }: { visit: BoardVisit }) {
+  const state = rowState(visit)
   return (
-    <Panel title="Visits" flush>
-      {visits.length === 0 ? (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
+        rowStateStyles[state],
+      )}
+    >
+      {rowStateLabels[state]}
+    </span>
+  )
+}
+
+const priorityDot: Record<BoardVisit['priority'], { dot: string; text: string }> = {
+  critical: { dot: 'bg-red-500', text: 'text-red-600' },
+  urgent: { dot: 'bg-red-500', text: 'text-red-600' },
+  high: { dot: 'bg-amber-500', text: 'text-amber-700' },
+  medium: { dot: 'bg-amber-500', text: 'text-amber-700' },
+  normal: { dot: 'bg-ink', text: 'text-ink' },
+  low: { dot: 'bg-ink-subtle', text: 'text-ink-muted' },
+}
+
+function PriorityDot({ priority }: { priority: BoardVisit['priority'] }) {
+  const tone = priorityDot[priority]
+  return (
+    <span className={cn('inline-flex items-center gap-2 text-sm capitalize', tone.text)}>
+      <span className={cn('size-1.5 shrink-0 rounded-full', tone.dot)} aria-hidden="true" />
+      {priority}
+    </span>
+  )
+}
+
+function RowAction({ visit }: { visit: BoardVisit }) {
+  const sr = ` for ${visit.recipientName} at ${formatTime(visit.start)}`
+  if (!visit.caregiverId && bookable(visit)) {
+    return (
+      <Link
+        to={`/scheduling/visits/${visit.id}/assign`}
+        className="bg-brand-600 hover:bg-brand-700 inline-flex h-7 items-center rounded-md px-3 text-xs font-semibold text-white"
+      >
+        Assign
+        <span className="sr-only"> a caregiver{sr}</span>
+      </Link>
+    )
+  }
+  const items: MenuItem[] = [
+    { id: 'view', label: 'View visit', to: `/scheduling/visits/${visit.id}/overview` },
+    // Nobody can be booked onto a visit that is over.
+    ...(bookable(visit)
+      ? [{ id: 'reassign', label: 'Reassign caregiver', to: `/scheduling/visits/${visit.id}/assign` }]
+      : []),
+    { id: 'recipient', label: 'Open care recipient', to: `/care-recipients/${visit.recipientId}` },
+    ...(visit.caregiverId
+      ? [{ id: 'caregiver', label: 'Open caregiver schedule', to: `/caregivers/${visit.caregiverId}/schedule` }]
+      : []),
+  ]
+  return <DropdownMenu label={`Actions${sr}`} items={items} />
+}
+
+const PAGE_SIZE = 10
+
+const stateFilters = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'unassigned', label: 'Unassigned' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'in-progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'unlogged', label: 'Not written up' },
+]
+
+function DayBoard({ date, visits }: { date: string; visits: BoardVisit[] }) {
+  const navigate = useNavigate()
+  const [query, setQuery] = useState('')
+  const [state, setState] = useState('all')
+  const [page, setPage] = useState(1)
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return visits.filter(
+      (v) =>
+        (state === 'all' || rowState(v) === state) &&
+        (!q ||
+          v.recipientName.toLowerCase().includes(q) ||
+          (v.caregiverName ?? '').toLowerCase().includes(q) ||
+          v.type.toLowerCase().includes(q)),
+    )
+  }, [visits, query, state])
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const start = (safePage - 1) * PAGE_SIZE
+  const rows = filtered.slice(start, start + PAGE_SIZE)
+  const day = formatFullDay(date)
+  const when = date === TODAY ? 'today' : `on ${day}`
+
+  return (
+    <section aria-labelledby="day-board-title" className="card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <h2
+          id="day-board-title"
+          className="text-ink flex items-center gap-2.5 text-base font-semibold tracking-tight"
+        >
+          <CalendarDays className="text-brand-600 size-5 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+          {/* Weekday and month come from the date; the design's "Julyober 24" does not. */}
+          {day}
+        </h2>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <label className="border-control focus-within:border-brand-400 flex h-10 w-full items-center gap-2 rounded-lg border px-3 sm:w-72">
+            <Search className="text-ink-subtle size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+            <span className="sr-only">Search visits</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setPage(1)
+              }}
+              placeholder="Search visit or patient..."
+              className="text-ink placeholder:text-ink-subtle min-w-0 grow bg-transparent text-sm outline-none"
+            />
+          </label>
+          <SelectFilter
+            chip
+            icon={Funnel}
+            label="Filters"
+            value={state}
+            onChange={(next) => {
+              setState(next)
+              setPage(1)
+            }}
+            options={stateFilters}
+          />
+        </div>
+      </div>
+
+      {visits.length === 0 || rows.length === 0 ? (
         <p
           role="status"
           className="text-ink-subtle border-line border-t px-4 py-10 text-center text-sm"
         >
-          Nothing on the board for {formatFullDay(date)}.
+          {visits.length === 0
+            ? `Nothing on the board for ${day}.`
+            : 'No visits match your search or filter.'}
         </p>
       ) : (
         <>
           <div
             tabIndex={0}
             role="region"
-            aria-label={`Visits on ${formatFullDay(date)}`}
+            aria-label={`Visits on ${day}`}
             className="hidden overflow-x-auto xl:block"
           >
             <table className="w-full min-w-4xl text-left text-sm">
-              <thead className="border-line bg-sunken text-ink-muted border-y text-xs">
+              <thead className="border-line bg-sunken text-ink-muted border-b text-xs">
                 <tr>
-                  {['Time', 'Care recipient', 'Caregiver', 'Service', 'Status', 'Priority', ''].map(
-                    (col, i) => (
+                  {['Time', 'Care recipient', 'Assigned caregiver', 'Service', 'Status', 'Priority', 'Actions'].map(
+                    (col) => (
                       <th
-                        key={col || `actions-${i}`}
+                        key={col}
                         scope="col"
-                        className="px-4 py-2.5 font-semibold tracking-wide uppercase"
+                        className={cn(
+                          'px-5 py-3 font-semibold tracking-wide whitespace-nowrap uppercase',
+                          col === 'Actions' && 'text-center',
+                        )}
                       >
-                        {col || <span className="sr-only">Actions</span>}
+                        {col}
                       </th>
                     ),
                   )}
                 </tr>
               </thead>
               <tbody className="divide-line divide-y">
-                {visits.map((visit) => (
-                  <tr
-                    key={visit.id}
-                    className={cn(
-                      'transition-colors',
-                      visit.caregiverId ? 'hover:bg-canvas' : 'bg-red-50/40',
-                    )}
-                  >
-                    <th
-                      scope="row"
-                      className="px-4 py-3 font-medium whitespace-nowrap tabular-nums"
-                    >
-                      {/* The time opens the visit — every row on this board is
-                          a record, not just a slot. */}
-                      <Link
-                        to={`/scheduling/visits/${visit.id}/overview`}
-                        className="text-ink hover:text-brand-700"
-                      >
-                        {formatTime(visit.start)}
-                        <span className="sr-only">
-                          {' '}
-                          visit for {visit.recipientName}
-                        </span>
-                        <span className="text-ink-subtle block text-xs font-normal">
-                          to {formatTime(visit.end)}
-                        </span>
-                      </Link>
-                    </th>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Link
-                        to={`/care-recipients/${visit.recipientId}`}
-                        className="text-ink hover:text-brand-700 font-medium"
-                      >
-                        {visit.recipientName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {visit.caregiverId ? (
-                        <span className="flex items-center gap-2">
-                          <Avatar
-                            name={visit.caregiverName!}
-                            decorative
-                            className="size-7 shrink-0 text-xs"
-                          />
-                          <Link
-                            to={`/caregivers/${visit.caregiverId}/schedule`}
-                            className="text-ink hover:text-brand-700"
-                          >
-                            {visit.caregiverName}
-                          </Link>
-                        </span>
-                      ) : (
-                        <span className="font-medium text-red-700">Unassigned</span>
+                {rows.map((visit) => {
+                  const open = !visit.caregiverId && rowState(visit) === 'unassigned'
+                  return (
+                    <tr
+                      key={visit.id}
+                      // Clicking anywhere on the row opens the visit. The time
+                      // stays a real link for keyboard and screen-reader users,
+                      // and clicks on the row's own links and buttons pass through.
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement
+                        // The "..." menu is portalled; its clicks bubble here
+                        // through React but are not inside the row's DOM.
+                        if (!e.currentTarget.contains(target)) return
+                        if (target.closest('a, button')) return
+                        navigate(`/scheduling/visits/${visit.id}/overview`)
+                      }}
+                      className={cn(
+                        'cursor-pointer transition-colors',
+                        open ? 'bg-red-50/40 hover:bg-red-50/70' : 'hover:bg-canvas',
                       )}
-                    </td>
-                    <td className="text-ink-muted px-4 py-3">{visit.type}</td>
-                    <td className="px-4 py-3">
-                      <StatusCell visit={visit} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <PriorityBadge priority={visit.priority} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {/* Nobody can be booked onto a visit that is over. */}
-                      {bookable(visit) ? (
+                    >
+                      <th
+                        scope="row"
+                        className={cn(
+                          'px-5 py-4 font-normal whitespace-nowrap tabular-nums',
+                          open && 'shadow-[inset_3px_0_0_var(--color-amber-500)]',
+                        )}
+                      >
                         <Link
-                          to={`/scheduling/visits/${visit.id}/assign`}
-                          className={
-                            visit.caregiverId
-                              ? 'text-brand-700 hover:text-brand-800 inline-flex min-h-11 items-center text-sm font-medium'
-                              : 'bg-brand-600 hover:bg-brand-700 inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-white'
-                          }
+                          to={`/scheduling/visits/${visit.id}/overview`}
+                          className="text-ink hover:text-brand-700"
                         >
-                          {visit.caregiverId ? 'Reassign' : 'Assign'}
+                          {formatTime(visit.start)}
                           <span className="sr-only">
                             {' '}
-                            a caregiver to {visit.recipientName} at{' '}
-                            {formatTime(visit.start)}
+                            to {formatTime(visit.end)}, visit for {visit.recipientName}
                           </span>
                         </Link>
-                      ) : (
-                        <span className="text-ink-subtle text-sm">Closed</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </th>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <Link
+                          to={`/care-recipients/${visit.recipientId}`}
+                          className="text-ink hover:text-brand-700 font-semibold"
+                        >
+                          {visit.recipientName}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        {visit.caregiverId ? (
+                          <span className="flex items-center gap-2.5">
+                            <Avatar
+                              name={visit.caregiverName!}
+                              decorative
+                              className="size-7 shrink-0 text-xs"
+                            />
+                            <Link
+                              to={`/caregivers/${visit.caregiverId}/schedule`}
+                              className="text-ink hover:text-brand-700"
+                            >
+                              {visit.caregiverName}
+                            </Link>
+                          </span>
+                        ) : (
+                          <span className="text-ink-subtle">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="text-ink-muted px-5 py-4 whitespace-nowrap">{visit.type}</td>
+                      <td className="px-5 py-4">
+                        <RowStatus visit={visit} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <PriorityDot priority={visit.priority} />
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <RowAction visit={visit} />
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
           <ul className="divide-line border-line divide-y border-t xl:hidden">
-            {visits.map((visit) => (
+            {rows.map((visit) => (
               <li
                 key={visit.id}
-                className={cn('p-4', !visit.caregiverId && 'bg-red-50/40')}
+                className={cn(
+                  'p-4',
+                  rowState(visit) === 'unassigned' &&
+                    'bg-red-50/40 shadow-[inset_3px_0_0_var(--color-amber-500)]',
+                )}
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <Link
@@ -486,57 +763,31 @@ function DayBoard({ date, visits }: { date: string; visits: BoardVisit[] }) {
                     {formatTime(visit.start)} – {formatTime(visit.end)}
                     <span className="sr-only"> visit for {visit.recipientName}</span>
                   </Link>
-                  <StatusCell visit={visit} />
+                  <RowStatus visit={visit} />
                 </div>
-                <p className="text-ink mt-1 text-sm font-medium break-words">
+                <p className="text-ink mt-1 text-sm font-semibold break-words">
                   {visit.recipientName}
                 </p>
                 <p className="text-ink-muted mt-0.5 text-sm break-words">
-                  {visit.type} ·{' '}
-                  {visit.caregiverId ? (
-                    <Link
-                      to={`/caregivers/${visit.caregiverId}/schedule`}
-                      className="text-brand-700 hover:text-brand-800"
-                    >
-                      {visit.caregiverName}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-red-700">Unassigned</span>
-                  )}
+                  {visit.type} · {visit.caregiverName ?? 'Unassigned'}
                 </p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  <PriorityBadge priority={visit.priority} />
-                  {/* The table's action, kept — a card fallback that drops it
-                      leaves the row unusable below 1280px. */}
-                  {bookable(visit) && (
-                    <Link
-                      to={`/scheduling/visits/${visit.id}/assign`}
-                      className={
-                        visit.caregiverId
-                          ? 'text-brand-700 hover:text-brand-800 inline-flex min-h-11 items-center text-sm font-medium'
-                          : 'bg-brand-600 hover:bg-brand-700 inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-white'
-                      }
-                    >
-                      {visit.caregiverId ? 'Reassign' : 'Assign'}
-                      <span className="sr-only">
-                        {' '}
-                        a caregiver to {visit.recipientName} at{' '}
-                        {formatTime(visit.start)}
-                      </span>
-                    </Link>
-                  )}
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                  <PriorityDot priority={visit.priority} />
+                  <RowAction visit={visit} />
                 </div>
               </li>
             ))}
           </ul>
 
-          <p className="text-ink-subtle border-line border-t px-4 py-3 text-xs">
-            {visits.length} visit{visits.length === 1 ? '' : 's'} on{' '}
-            {formatFullDay(date)}, counted from the board above.
-          </p>
+          <Pagination
+            page={safePage}
+            pageCount={pageCount}
+            onPageChange={setPage}
+            summary={`Showing ${start + 1}–${start + rows.length} of ${filtered.length} visits ${when}`}
+          />
         </>
       )}
-    </Panel>
+    </section>
   )
 }
 
@@ -748,14 +999,6 @@ function UnassignedQueue({
  * it. Both carried status "unassigned", so the board showed a red Unassigned
  * badge next to a caregiver's name.
  */
-function StatusCell({ visit }: { visit: BoardVisit }) {
-  if (!isUnlogged(visit)) return <VisitStatusBadge status={visit.status} />
-  return (
-    <span className="text-ink-subtle bg-sunken inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
-      Not written up
-    </span>
-  )
-}
 
 /* ------------------------------- conflict list ----------------------------- */
 

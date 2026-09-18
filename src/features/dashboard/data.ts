@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
-  FileText,
+  FilePlus,
   House,
   Megaphone,
   PlayCircle,
@@ -64,6 +64,12 @@ export interface QuickAction {
   id: string
   label: string
   icon: LucideIcon
+  /**
+   * Wayfinding, not status. These six are a launcher — the colour is there so
+   * the eye can find "Broadcast Announcement" without reading all six labels,
+   * and it carries none of the meaning a tone carries on a visit or an alert.
+   */
+  tone: Tone
 }
 
 export interface Metric {
@@ -268,12 +274,12 @@ export const activity: ActivityEntry[] = [
 ]
 
 export const quickActions: QuickAction[] = [
-  { id: 'q1', label: 'Assign Caregiver', icon: UserPlus },
-  { id: 'q2', label: 'Schedule Visit', icon: CalendarPlus },
-  { id: 'q3', label: 'Create Care Plan', icon: FileText },
-  { id: 'q4', label: 'Register Care Recipient', icon: UserRound },
-  { id: 'q5', label: 'Broadcast Announcement', icon: Megaphone },
-  { id: 'q6', label: 'Generate Report', icon: BarChart3 },
+  { id: 'q1', label: 'Assign Caregiver', icon: UserPlus, tone: 'blue' },
+  { id: 'q2', label: 'Schedule Visit', icon: CalendarPlus, tone: 'blue' },
+  { id: 'q3', label: 'Create Care Plan', icon: FilePlus, tone: 'green' },
+  { id: 'q4', label: 'Register Care Recipient', icon: UserRound, tone: 'purple' },
+  { id: 'q5', label: 'Broadcast Announcement', icon: Megaphone, tone: 'amber' },
+  { id: 'q6', label: 'Generate Report', icon: BarChart3, tone: 'slate' },
 ]
 
 export const metrics: Metric[] = [

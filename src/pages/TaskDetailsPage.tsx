@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Check, Info, Plus, Trash2, X } from 'lucide-react'
+import { Check, Info, MapPin, Plus, Trash2, X } from 'lucide-react'
 import {
   addChecklistItem,
   addComment,
+  relatedVisit,
+  roleOf,
   deleteTask,
   formatDue,
   isOverdue,
@@ -18,6 +20,8 @@ import {
 import { EditTaskDialog } from '@/features/tasks/CreateTaskDialog'
 import { Panel } from '@/components/ui/Panel'
 import { PriorityBadge } from '@/components/ui/StatusBadge'
+import { placeOfRecipient } from '@/features/monitoring/locations-data'
+import { formatTime } from '@/features/monitoring/live-data'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { cn } from '@/lib/cn'
 
@@ -57,6 +61,14 @@ export function TaskDetailsPage() {
   const ticked = checklist.filter((c) => c.done).length
   const percent = checklist.length === 0 ? 0 : Math.round((ticked / checklist.length) * 100)
   const related = relatedTasks(task)
+  const visit = relatedVisit(task)
+  const place = task.recipientId ? placeOfRecipient(task.recipientId) : undefined
+  /*
+   * "In progress" is read off the checklist rather than set by a button. A task
+   * with three of five steps ticked is under way whatever anybody pressed, and
+   * a status somebody has to remember to change is a status that goes stale.
+   */
+  const started = !task.done && ticked > 0
 
   return (
     <div className="space-y-5">
@@ -88,11 +100,24 @@ export function TaskDetailsPage() {
                   ? 'bg-emerald-50 text-emerald-700'
                   : isOverdue(task)
                     ? 'bg-red-50 text-red-700'
-                    : 'bg-sunken text-ink-muted',
+                    : started
+                      ? 'bg-amber-50 text-amber-800'
+                      : 'bg-sunken text-ink-muted',
               )}
             >
-              {task.done ? 'Done' : isOverdue(task) ? 'Overdue' : 'Open'}
+              {task.done
+                ? 'Done'
+                : isOverdue(task)
+                  ? 'Overdue'
+                  : started
+                    ? 'In progress'
+                    : 'Open'}
             </span>
+            {task.createdAt && (
+              <span className="text-ink-subtle">
+                Written {stamp(task.createdAt)}
+              </span>
+            )}
             <span className="text-ink-subtle">
               Due {formatDue(task.due).toLowerCase()}
             </span>
@@ -246,7 +271,7 @@ export function TaskDetailsPage() {
                     <button
                       type="submit"
                       disabled={item.trim() === ''}
-                      className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                      className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Plus className="size-4 shrink-0" strokeWidth={2.2} aria-hidden="true" />
                       Add
@@ -254,6 +279,80 @@ export function TaskDetailsPage() {
                   </form>
                 </div>
               </Panel>
+
+              {visit && (
+                <Panel title="The visit">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-ink text-sm font-semibold break-words">
+                        <Link
+                          to={`/scheduling/visits/${visit.id}/overview`}
+                          className="hover:text-brand-700"
+                        >
+                          {visit.type} — {formatDue(visit.date)}
+                        </Link>
+                      </p>
+                      <p className="text-ink-muted mt-0.5 text-sm tabular-nums">
+                        {formatTime(visit.start)} – {formatTime(visit.end)}
+                      </p>
+                    </div>
+                    <span className="bg-sunken text-ink-muted shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+                      {visitStatus(visit.status)}
+                    </span>
+                  </div>
+
+                  <dl className="border-line mt-3 grid gap-x-4 gap-y-3 border-t pt-3 text-sm sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <dt className="text-ink-subtle text-xs">Caregiver</dt>
+                      <dd className="text-ink font-medium break-words">
+                        {visit.caregiverId ? (
+                          <Link
+                            to={`/caregivers/${visit.caregiverId}/schedule`}
+                            className="hover:text-brand-700"
+                          >
+                            {visit.caregiverName}
+                          </Link>
+                        ) : (
+                          <span className="text-red-700">Nobody assigned</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-ink-subtle text-xs">Care recipient</dt>
+                      <dd className="text-ink font-medium break-words">
+                        <Link
+                          to={`/care-recipients/${visit.recipientId}`}
+                          className="hover:text-brand-700"
+                        >
+                          {visit.recipientName}
+                        </Link>
+                      </dd>
+                    </div>
+                    {place && (
+                      <div className="min-w-0 sm:col-span-2">
+                        <dt className="text-ink-subtle text-xs">Address</dt>
+                        <dd className="text-ink-muted flex items-start gap-1.5 break-words">
+                          <MapPin
+                            className="mt-0.5 size-3.5 shrink-0"
+                            strokeWidth={1.9}
+                            aria-hidden="true"
+                          />
+                          {place.address}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+
+                  {/* Two different claims, and the card says which it is
+                      making. A paperwork row came off this visit; a written
+                      task merely falls on a day the client is seen. */}
+                  <p className="text-ink-subtle mt-3 text-xs">
+                    {task.visitId
+                      ? 'This task came off that visit.'
+                      : 'Not attached to the visit — it is the one on this client’s board the day this is due.'}
+                  </p>
+                </Panel>
+              )}
 
               <Panel title="Notes">
                 <ul className="divide-line divide-y">
@@ -326,13 +425,92 @@ export function TaskDetailsPage() {
               </Link>
             </Panel>
           )}
+
+          {!written && visit && (
+            <Panel title="The visit">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-ink text-sm font-semibold break-words">
+                    <Link
+                      to={`/scheduling/visits/${visit.id}/overview`}
+                      className="hover:text-brand-700"
+                    >
+                      {visit.type} — {formatDue(visit.date)}
+                    </Link>
+                  </p>
+                  <p className="text-ink-muted mt-0.5 text-sm tabular-nums">
+                    {formatTime(visit.start)} – {formatTime(visit.end)}
+                  </p>
+                </div>
+                <span className="bg-sunken text-ink-muted shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+                  {visitStatus(visit.status)}
+                </span>
+              </div>
+              <dl className="border-line mt-3 grid gap-x-4 gap-y-3 border-t pt-3 text-sm sm:grid-cols-2">
+                <div className="min-w-0">
+                  <dt className="text-ink-subtle text-xs">Caregiver</dt>
+                  <dd className="text-ink font-medium break-words">
+                    {visit.caregiverId ? (
+                      <Link
+                        to={`/caregivers/${visit.caregiverId}/schedule`}
+                        className="hover:text-brand-700"
+                      >
+                        {visit.caregiverName}
+                      </Link>
+                    ) : (
+                      <span className="text-red-700">Nobody assigned</span>
+                    )}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-ink-subtle text-xs">Care recipient</dt>
+                  <dd className="text-ink font-medium break-words">
+                    <Link
+                      to={`/care-recipients/${visit.recipientId}`}
+                      className="hover:text-brand-700"
+                    >
+                      {visit.recipientName}
+                    </Link>
+                  </dd>
+                </div>
+                {place && (
+                  <div className="min-w-0 sm:col-span-2">
+                    <dt className="text-ink-subtle text-xs">Address</dt>
+                    <dd className="text-ink-muted flex items-start gap-1.5 break-words">
+                      <MapPin
+                        className="mt-0.5 size-3.5 shrink-0"
+                        strokeWidth={1.9}
+                        aria-hidden="true"
+                      />
+                      {place.address}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <p className="text-ink-subtle mt-3 text-xs">
+                This task came off that visit.
+              </p>
+            </Panel>
+          )}
         </div>
 
         <div className="space-y-4">
           <Panel title="Details">
             <dl className="divide-line divide-y text-sm">
               <Row label="Category" value={categoryLabel(task.category)} />
-              <Row label="Assigned to" value={task.assignee ?? 'Nobody'} />
+              <Row
+                label="Assigned to"
+                value={
+                  <>
+                    {task.assignee ?? 'Nobody'}
+                    {roleOf(task.assignee) && (
+                      <span className="text-ink-subtle block text-xs font-normal">
+                        {roleOf(task.assignee)}
+                      </span>
+                    )}
+                  </>
+                }
+              />
               <Row
                 label="Client"
                 value={
@@ -360,6 +538,9 @@ export function TaskDetailsPage() {
                 label="Source"
                 value={written ? `Written by ${task.createdBy}` : 'Worked out'}
               />
+              {task.createdAt && (
+                <Row label="Written" value={stamp(task.createdAt)} />
+              )}
               {task.estimateMinutes != null && (
                 <Row label="Estimate" value={`${task.estimateMinutes} minutes`} />
               )}
@@ -436,6 +617,12 @@ export function TaskDetailsPage() {
       </p>
     </div>
   )
+}
+
+/** "late-arrival" → "Late arrival". The board's own word, just readable. */
+function visitStatus(status: string): string {
+  const words = status.replace(/-/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {

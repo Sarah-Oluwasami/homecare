@@ -22,7 +22,7 @@ export function DashboardPage() {
 
         <button
           type="button"
-          className="border-line text-ink hover:bg-sunken inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors"
+          className="border-control text-ink hover:bg-sunken inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors"
         >
           <Download className="size-4" strokeWidth={1.9} />
           Download Report

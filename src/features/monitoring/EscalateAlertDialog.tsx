@@ -244,14 +244,14 @@ export function EscalateAlertDialog({
           <button
             type="button"
             onClick={onClose}
-            className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
           >
             Cancel
           </button>
           {assignee && (
             <a
               href={telHref(assignee.phone)}
-              className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+              className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
             >
               <Phone className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
               Call {assignee.name.split(' ')[0]}

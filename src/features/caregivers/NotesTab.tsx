@@ -316,7 +316,7 @@ function Chip({
         'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors',
         active
           ? 'border-brand-600 bg-brand-50 text-brand-700'
-          : 'border-line text-ink-muted hover:text-ink',
+          : 'border-control text-ink-muted hover:text-ink',
       )}
     >
       {label}

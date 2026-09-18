@@ -1,4 +1,4 @@
-import { Check, Flag, MessageSquare, MoreHorizontal, Paperclip } from 'lucide-react'
+import { Flag, HeartPulse, MessageSquare, MoreHorizontal, Paperclip } from 'lucide-react'
 import type { CareNoteEntry } from '../notes-data'
 import {
   formatNoteTime,
@@ -103,10 +103,10 @@ export function NoteCard({ note, acknowledged, onAcknowledge }: NoteCardProps) {
               : 'text-ink-muted hover:bg-sunken hover:text-ink',
           )}
         >
-          <Check
-            className={cn('size-3.5 shrink-0', acknowledged && 'stroke-3')}
-            aria-hidden="true"
-          />
+          {/* The design draws acknowledgement with a heart-pulse, not a tick.
+              Same glyph in both states — the label and colour carry the change,
+              and a heavier stroke at this size just fills the glyph in. */}
+          <HeartPulse className="size-3.5 shrink-0" aria-hidden="true" />
           {acknowledged ? 'Acknowledged' : 'Acknowledge'}
         </button>
 

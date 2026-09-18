@@ -377,7 +377,7 @@ export function MonitoringHistoryPage() {
       <div className="card space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <SelectFilter
-            pill
+            chip
             label="Date Range"
             value={range}
             onChange={(v) => set('range', v)}
@@ -385,7 +385,7 @@ export function MonitoringHistoryPage() {
           />
           {tab !== 'incidents' && (
             <SelectFilter
-              pill
+              chip
               label="Branch"
               value={branch}
               onChange={(v) => set('branch', v)}
@@ -401,14 +401,14 @@ export function MonitoringHistoryPage() {
           {tab === 'visits' && (
             <>
               <SelectFilter
-                pill
+                chip
                 label="Care Recipient"
                 value={recipient}
                 onChange={(v) => set('recipient', v)}
                 options={[{ value: 'all', label: 'All' }, ...recipientOptions]}
               />
               <SelectFilter
-                pill
+                chip
                 label="Caregiver"
                 value={caregiver}
                 onChange={(v) => set('caregiver', v)}
@@ -419,7 +419,7 @@ export function MonitoringHistoryPage() {
                   cannot say a visit completed without a record of it, so the
                   list offers "Not written up", never "Completed". */}
               <SelectFilter
-                pill
+                chip
                 label="Status"
                 value={outcome}
                 onChange={(v) => set('outcome', v)}
@@ -436,14 +436,14 @@ export function MonitoringHistoryPage() {
           {tab === 'alerts' && (
             <>
               <SelectFilter
-                pill
+                chip
                 label="Priority"
                 value={priority}
                 onChange={(v) => set('priority', v)}
                 options={[{ value: 'all', label: 'All' }, ...priorityOptions]}
               />
               <SelectFilter
-                pill
+                chip
                 label="Alert Type"
                 value={kind}
                 onChange={(v) => set('kind', v)}
@@ -454,7 +454,7 @@ export function MonitoringHistoryPage() {
           {tab === 'incidents' && (
             <>
               <SelectFilter
-                pill
+                chip
                 label="Type"
                 value={type}
                 onChange={(v) => set('type', v)}
@@ -464,14 +464,14 @@ export function MonitoringHistoryPage() {
                   "Severity". One word for one axis — the column is the thing
                   being filtered, so the column's word wins. */}
               <SelectFilter
-                pill
+                chip
                 label="Severity"
                 value={severity}
                 onChange={(v) => set('severity', v)}
                 options={[{ value: 'all', label: 'All' }, ...severityOptions]}
               />
               <SelectFilter
-                pill
+                chip
                 label="Status"
                 value={status}
                 onChange={(v) => set('status', v)}

@@ -25,17 +25,20 @@ export function VisitFilters({
 
   return (
     <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
-      {/* Four across only at 2xl — below that each column is too narrow for
-          "Last 30 Days" and the native control clips without an ellipsis. */}
-      <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 2xl:grid-cols-4">
+      {/* Each pill is as wide as what it says, and they wrap. An equal-width
+          grid made "Caregiver: All" as wide as "Date Range: Last 30 Days" and
+          left four columns of trailing space. */}
+      <div className="flex flex-wrap gap-2">
         <SelectFilter
           label="Date Range"
+          chip
           value={filters.range}
           onChange={(v) => set('range', v)}
           options={rangeOptions}
         />
         <SelectFilter
           label="Caregiver"
+          chip
           value={filters.caregiver}
           onChange={(v) => set('caregiver', v)}
           options={[
@@ -45,6 +48,7 @@ export function VisitFilters({
         />
         <SelectFilter
           label="Visit Type"
+          chip
           value={filters.type}
           onChange={(v) => set('type', v)}
           options={[
@@ -54,6 +58,7 @@ export function VisitFilters({
         />
         <SelectFilter
           label="Status"
+          chip
           value={filters.status}
           onChange={(v) => set('status', v)}
           options={[{ value: 'all', label: 'All' }, ...statuses]}
@@ -72,7 +77,10 @@ export function VisitFilters({
           onChange={(e) => set('query', e.target.value)}
           aria-label="Search visits and notes"
           placeholder="Search visits, notes..."
-          className="border-line bg-surface text-ink placeholder:text-ink-subtle focus:border-brand-400 h-10 w-full rounded-lg border pr-3 pl-9 text-sm"
+          // Same corner and height as the filter chips beside it — a search
+          // box shaped differently from the row it sits in reads as a
+          // different kind of control.
+          className="border-control bg-surface text-ink placeholder:text-ink-subtle focus:border-brand-400 h-11 w-full rounded-xl border pr-4 pl-9 text-sm sm:h-9.5"
         />
       </div>
     </div>

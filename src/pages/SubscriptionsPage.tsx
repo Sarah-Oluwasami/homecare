@@ -254,14 +254,14 @@ export function SubscriptionsPage() {
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
             <Download className="size-4" strokeWidth={1.9} aria-hidden="true" />
             Export
           </button>
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
             <Layers className="size-4" strokeWidth={1.9} aria-hidden="true" />
             Bulk actions
@@ -600,7 +600,7 @@ export function SubscriptionsPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="border-line text-ink hover:bg-sunken h-10 rounded-lg border px-4 text-sm font-medium"
+                className="border-control text-ink hover:bg-sunken h-10 rounded-lg border px-4 text-sm font-medium"
               >
                 Change plan tier
                 <span className="sr-only"> for {detail.familyName}</span>

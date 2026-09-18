@@ -206,14 +206,14 @@ function ContactCard({
       <div className="mt-3 flex flex-wrap gap-2">
         <a
           href={telHref(member.phone)}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium"
         >
           <Phone className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
           {member.phone}
         </a>
         <a
           href={`mailto:${member.email}`}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium"
         >
           <Mail className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
           Email
@@ -331,7 +331,7 @@ function RecordAttempt({
         <button
           type="button"
           onClick={onDone}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-medium"
         >
           Cancel
         </button>

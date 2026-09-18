@@ -1700,7 +1700,7 @@ function AlertActions({ alert, now }: { alert: LiveAlert; now: string }) {
       {alert.contact && (
         <a
           href={telHref(alert.contact.phone)}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-3 text-xs font-medium whitespace-nowrap"
+          className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-3 text-xs font-medium whitespace-nowrap"
         >
           {alert.contact.label}
           <span className="sr-only">

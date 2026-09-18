@@ -1,22 +1,22 @@
+/**
+ * The agency's own mark, from `public/icons/cp-icon.png`. It carries its own
+ * shield and colour, so it is not sat on a brand-coloured tile the way the
+ * drawn placeholder was — a tile would box a shape that is already a shape.
+ *
+ * Width and height are set because the file is 76×81, not square: leaving them
+ * off let the layout shift while the image loaded.
+ */
 export function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="bg-brand-600 grid size-9 shrink-0 place-items-center rounded-[0.6rem]">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth={1.9}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="size-5"
-          aria-hidden="true"
-        >
-          <path d="M8.5 10.5a2.5 2.5 0 1 1 5 0v3a4 4 0 0 1-8 0v-1" />
-          <circle cx="17.5" cy="9" r="2.5" />
-          <path d="M17.5 11.5v3a4 4 0 0 1-4 4" />
-        </svg>
-      </div>
+      <img
+        src="/icons/cp-icon.png"
+        width={76}
+        height={81}
+        alt=""
+        aria-hidden="true"
+        className="h-9 w-auto shrink-0"
+      />
       <span className="text-brand-700 text-lg font-bold tracking-tight">
         CAREPROFS
       </span>

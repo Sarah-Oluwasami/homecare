@@ -180,7 +180,7 @@ export function IncidentDetailsPage() {
             {reporter?.phone && (
               <a
                 href={telHref(reporter.phone)}
-                className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+                className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
               >
                 <Phone className="size-4" strokeWidth={1.9} aria-hidden="true" />
                 Call {incident.reporter.split(' ')[0]}
@@ -190,7 +190,7 @@ export function IncidentDetailsPage() {
             {emergency && (
               <a
                 href={telHref(emergency.phone)}
-                className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+                className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
               >
                 <Phone className="size-4" strokeWidth={1.9} aria-hidden="true" />
                 Call {emergency.name.split(' ')[0]}

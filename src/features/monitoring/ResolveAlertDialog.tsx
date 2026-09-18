@@ -184,7 +184,7 @@ export function ResolveAlertDialog({
           <button
             type="button"
             onClick={onClose}
-            className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
           >
             Cancel
           </button>

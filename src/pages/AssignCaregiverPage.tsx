@@ -1,12 +1,16 @@
 import { useMemo } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  CalendarDays,
+  ChevronDown,
+  MapPin,
+  Star,
+  ChevronRight,
   BadgeCheck,
   Check,
   Info,
   Search,
   TriangleAlert,
-  X,
 } from 'lucide-react'
 import {
   TODAY,
@@ -19,7 +23,6 @@ import {
   formatTime,
   requirementFor,
   sortOptions,
-  summarise,
   topRanked,
 } from '@/features/scheduling/assign-data'
 import type {
@@ -30,14 +33,13 @@ import type {
   Factor,
 } from '@/features/scheduling/assign-data'
 import { findVisit, formatFullDay } from '@/features/scheduling/visit-detail'
-import { formatWeekRange, weekStart } from '@/features/scheduling/board-data'
 import type { BoardVisit } from '@/features/scheduling/board-data'
 import { credentialStates } from '@/features/caregivers/roster-data'
-import { Panel } from '@/components/ui/Panel'
+import { getRecipientProfile } from '@/features/care-recipients/profile-data'
 import { Avatar } from '@/components/ui/Avatar'
 import { PriorityBadge } from '@/components/ui/StatusBadge'
-import { SelectFilter } from '@/components/ui/SelectFilter'
 import { cn } from '@/lib/cn'
+import { formatMiles, travelMiles } from '@/features/monitoring/locations-data'
 
 /* --------------------------------- helpers --------------------------------- */
 
@@ -57,8 +59,11 @@ export function AssignCaregiverPage() {
   const visit = useMemo(() => findVisit(visitId), [visitId])
 
   const search = params.get('q') ?? ''
-  const avail = params.get('avail') ?? 'all'
-  const cert = params.get('cert') ?? 'all'
+  // The Figma opens already narrowed: free at the visit time, holding the
+  // service's certification. "all" is stored explicitly once cleared.
+  const avail = params.get('avail') ?? 'covered'
+  const cert = params.get('cert') ?? 'certified'
+  const dist = params.get('dist') ?? 'any'
   const branch = params.get('branch') ?? 'all'
   const sort = params.get('sort') ?? 'match'
 
@@ -84,8 +89,15 @@ export function AssignCaregiverPage() {
   )
 
   const all = useMemo(() => (visit ? candidatesFor(visit) : []), [visit])
-  const shown = useMemo(() => applyQuery(all, query), [all, query])
-  const summary = useMemo(() => summarise(shown), [shown])
+  const maxMiles = distanceOptions.find((d) => d.value === dist)?.miles ?? null
+  const shown = useMemo(() => {
+    const listed = applyQuery(all, query)
+    if (maxMiles === null || !visit) return listed
+    return listed.filter((c) => {
+      const miles = travelMiles(c.member.id, visit.recipientId)
+      return miles !== null && miles <= maxMiles
+    })
+  }, [all, query, maxMiles, visit])
 
   if (!visit) return <Navigate to="/scheduling" replace />
 
@@ -107,11 +119,14 @@ export function AssignCaregiverPage() {
     query.search !== '' ||
     query.availability !== 'all' ||
     query.credential !== 'all' ||
-    query.branch !== 'all'
+    query.branch !== 'all' ||
+    maxMiles !== null
 
   const set = (key: string, value: string) => {
     const next = new URLSearchParams(params)
-    if (value === '' || value === 'all') next.delete(key)
+    const defaults: Record<string, string> = { avail: 'covered', cert: 'certified', dist: 'any' }
+    const fallback = defaults[key] ?? 'all'
+    if (value === '' || value === fallback) next.delete(key)
     else next.set(key, value)
     // Changing the filters must not leave a selection behind that is no longer
     // on screen — the confirm bar would describe an invisible card.
@@ -123,34 +138,46 @@ export function AssignCaregiverPage() {
     // The confirm bar is fixed; the pad keeps the last card and the escape
     // links clear of it. It wraps to several rows on a narrow screen.
     <div className="space-y-6 pb-56 sm:pb-32">
-      <nav aria-label="Breadcrumb">
-        <ol className="text-ink-subtle flex flex-wrap items-center gap-1.5 text-sm">
-          <li>
-            <Link to="/scheduling" className="hover:text-ink">
-              Scheduling
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li>
-            <Link
-              to={`/scheduling/visits/${visit.id}/overview`}
-              className="hover:text-ink"
-            >
-              {visit.type} · {visit.recipientName}
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li className="text-ink font-medium" aria-current="page">
-            {visit.caregiverId ? 'Reassign caregiver' : 'Assign caregiver'}
-          </li>
-        </ol>
-      </nav>
+      <div className="card p-4 sm:px-7 sm:py-6">
+        <nav aria-label="Breadcrumb">
+          <ol className="text-ink-muted flex flex-wrap items-center gap-1.5 text-[0.8125rem]">
+            <li>
+              <Link to="/scheduling" className="hover:text-ink">
+                Scheduling
+              </Link>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="text-ink-muted size-3.5" strokeWidth={2.4} />
+            </li>
+            <li>
+              {/* An open visit is reached from the Unassigned queue; a
+                  reassignment starts from the visit itself. */}
+              {visit.caregiverId ? (
+                <Link to={`/scheduling/visits/${visit.id}/overview`} className="hover:text-ink">
+                  Visit Details
+                </Link>
+              ) : (
+                <Link to="/scheduling?view=unassigned" className="hover:text-ink">
+                  Unassigned Visits
+                </Link>
+              )}
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="text-ink-muted size-3.5" strokeWidth={2.4} />
+            </li>
+            <li className="text-brand-700 font-medium" aria-current="page">
+              {visit.caregiverId ? 'Reassign Caregiver' : 'Assign Caregiver'}
+            </li>
+          </ol>
+        </nav>
 
-      <div className="card p-4 sm:p-6">
-        <h1 className="text-ink text-2xl font-bold tracking-tight">
-          {visit.caregiverId ? 'Reassign caregiver' : 'Assign caregiver'}
+        <h1 className="text-ink mt-1.5 text-2xl font-bold tracking-tight">
+          {visit.caregiverId ? 'Reassign Caregiver' : 'Assign Caregiver'}
         </h1>
-        {closed ? (
+        <p className="text-ink-muted mt-1 text-sm">
+          Select the most suitable caregiver for this visit.
+        </p>
+        {closed && (
           <p className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <TriangleAlert
               className="mt-0.5 size-4 shrink-0"
@@ -162,59 +189,55 @@ export function AssignCaregiverPage() {
               ranking below is shown for reference only.
             </span>
           </p>
-        ) : (
-          <p className="text-ink-muted mt-1 text-sm">
-            Ranked on the certification the service needs, whether the time
-            falls inside their availability, whether the client already knows
-            them, matching skills and client ratings. Everyone who cannot take
-            it is listed too, with the reason.
-          </p>
         )}
       </div>
 
-      <VisitStrip visit={visit} required={required} />
+      <VisitStrip visit={visit} />
 
       {/* -------------------------------- filters ------------------------------- */}
 
-      <div className="card space-y-3 p-4">
+      <div className="card space-y-3 p-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative min-w-0 grow basis-64">
             <span className="sr-only">Search caregivers</span>
             <Search
-              className="text-ink-subtle pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-              strokeWidth={1.9}
+              className="text-ink-subtle pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+              strokeWidth={2}
               aria-hidden="true"
             />
             <input
               type="search"
               value={query.search}
               onChange={(e) => set('q', e.target.value)}
-              placeholder="Name, role, skill or certification"
-              className="border-line placeholder:text-ink-subtle focus-visible:border-brand-400 h-10 w-full rounded-lg border pr-3 pl-9 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              placeholder="Search caregivers by name, skill, or certification..."
+              className="bg-sunken placeholder:text-ink-muted h-10 w-full rounded-lg pr-3 pl-10 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
             />
           </label>
-          <SelectFilter
+          <ChipSelect
+            boxed
             label="Sort by"
             value={query.sort}
             onChange={(v) => set('sort', v)}
-            options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
+            options={sortOptions.map((o) => ({ value: o.value, label: titleCase(o.label) }))}
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <SelectFilter
-            label="Show"
+        <div className="flex flex-wrap items-center gap-2.5">
+          <ChipSelect
+            label="Availability"
             value={query.availability}
+            active={query.availability !== 'all'}
             onChange={(v) => set('avail', v)}
             options={availabilityOptions.map((o) => ({
               value: o.value,
-              label: o.label,
+              label: availabilityChipLabels[o.value],
             }))}
           />
           {required !== null && (
-            <SelectFilter
+            <ChipSelect
               label="Certification"
               value={query.credential}
+              active={query.credential !== 'all'}
               onChange={(v) => set('cert', v)}
               options={[
                 { value: 'all', label: 'Any' },
@@ -222,33 +245,37 @@ export function AssignCaregiverPage() {
               ]}
             />
           )}
-          <SelectFilter
+          <ChipSelect
+            label="Distance"
+            value={maxMiles === null ? 'any' : dist}
+            active={maxMiles !== null}
+            onChange={(v) => set('dist', v)}
+            options={distanceOptions.map((d) => ({ value: d.value, label: d.label }))}
+          />
+          <ChipSelect
             label="Branch"
             value={query.branch}
+            active={query.branch !== 'all'}
             onChange={(v) => set('branch', v)}
             options={[
               { value: 'all', label: 'All' },
               ...branchesOnRoster.map((b) => ({ value: b, label: b })),
             ]}
           />
-          {filtered && (
-            <button
-              type="button"
-              onClick={() => setParams(new URLSearchParams(), { replace: true })}
-              className="text-brand-700 hover:text-brand-800 inline-flex min-h-11 items-center px-1 text-sm font-medium"
-            >
-              Clear filters
-            </button>
-          )}
+          <button
+            type="button"
+            aria-disabled={!filtered}
+            onClick={() => {
+              if (!filtered) return
+              // Explicit "all": the defaults are themselves filters.
+              setParams(new URLSearchParams({ avail: 'all', cert: 'all' }), { replace: true })
+            }}
+            className="text-brand-700 hover:text-brand-800 aria-disabled:text-ink-muted inline-flex min-h-8 items-center px-1 text-[0.8125rem] font-semibold underline underline-offset-2 aria-disabled:cursor-default aria-disabled:no-underline"
+          >
+            Clear Filters
+          </button>
         </div>
 
-        {/* Every count here is of the cards below, not of the roster — the
-            two disagreed the moment a filter was applied. */}
-        <p className="text-ink-subtle text-xs" role="status" aria-live="polite">
-          Showing {shown.length} of {all.length} · {summary.assignable}{' '}
-          assignable · {summary.free} free at this time
-          {required !== null && ` · ${summary.certified} hold ${required}`}
-        </p>
       </div>
 
       {/* ------------------------------- candidates ----------------------------- */}
@@ -293,7 +320,7 @@ export function AssignCaregiverPage() {
         ) : (
           <ul
             aria-label={`${shown.length} caregiver${shown.length === 1 ? '' : 's'}`}
-            className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3"
+            className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3"
           >
             {shown.map((candidate) => (
               <CandidateCard
@@ -317,19 +344,22 @@ export function AssignCaregiverPage() {
         )}
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="border-line flex flex-wrap items-center justify-between gap-3 border-t pt-6">
         <Link
           to={`/scheduling/visits/${visit.id}/overview`}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center rounded-lg border bg-white px-4 text-sm font-medium"
         >
           Cancel
         </Link>
-        <Link
-          to={`/caregivers?sort=caseload`}
-          className="text-brand-700 hover:text-brand-800 inline-flex min-h-11 items-center text-sm font-medium"
+        {/* Backup coverage has nowhere to go yet, so this says so rather than
+            sending a request that is never received. */}
+        <button
+          type="button"
+          aria-disabled="true"
+          className="text-brand-700 text-sm font-medium underline underline-offset-2 aria-disabled:cursor-default"
         >
-          Can&rsquo;t find a match? Open the full roster
-        </Link>
+          Can&rsquo;t find a match? Request backup coverage
+        </button>
       </div>
 
       {selected && <ConfirmBar candidate={selected} visit={visit} onClear={() => set('selected', '')} />}
@@ -337,57 +367,134 @@ export function AssignCaregiverPage() {
   )
 }
 
+/* --------------------------------- filters -------------------------------- */
+
+const availabilityChipLabels: Record<(typeof availabilityOptions)[number]['value'], string> = {
+  all: 'All',
+  eligible: 'Assignable',
+  covered: 'Available at visit time',
+}
+
+const distanceOptions = [
+  { value: 'any', label: 'Any', miles: null },
+  { value: '3', label: 'Within 3 miles', miles: 3 },
+  { value: '5', label: 'Within 5 miles', miles: 5 },
+  { value: '10', label: 'Within 10 miles', miles: 10 },
+] as const
+
+function titleCase(label: string): string {
+  return label.replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/**
+ * A native select drawn as the Figma's pill: "Label: Value". Outlined in brand
+ * when it narrows the list, grey when it doesn't. `boxed` is the sort control's
+ * squarer shape with a chevron.
+ */
+function ChipSelect({
+  label,
+  value,
+  options,
+  onChange,
+  active = false,
+  boxed = false,
+}: {
+  label: string
+  value: string
+  options: { value: string; label: string }[]
+  onChange: (value: string) => void
+  active?: boolean
+  boxed?: boolean
+}) {
+  return (
+    <label
+      className={cn(
+        'relative inline-flex items-center border text-[0.8125rem] transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-600',
+        boxed
+          ? 'border-control text-ink hover:bg-sunken h-9 rounded-lg pl-3'
+          : 'h-8 rounded-full pl-3',
+        !boxed &&
+          (active
+            ? 'border-brand-600 text-brand-700 font-semibold'
+            : 'border-control text-ink-muted hover:bg-sunken'),
+      )}
+    >
+      <span className="shrink-0">{label}:&nbsp;</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          'h-full min-w-0 cursor-pointer appearance-none bg-transparent [field-sizing:content] focus:outline-none',
+          boxed ? 'pr-8' : 'pr-3',
+          active && 'font-semibold',
+        )}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {boxed && (
+        <ChevronDown
+          className="text-ink-muted pointer-events-none absolute right-2.5 size-4"
+          strokeWidth={2.2}
+          aria-hidden="true"
+        />
+      )}
+    </label>
+  )
+}
+
 /* ------------------------------- visit strip ------------------------------- */
 
-function VisitStrip({
-  visit,
-  required,
-}: {
-  visit: BoardVisit
-  required: string | null
-}) {
-  const rows = [
+const stripDate = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+function VisitStrip({ visit }: { visit: BoardVisit }) {
+  const address = getRecipientProfile(visit.recipientId)?.personal.address
+  const facts = [
     { id: 'service', label: 'Service', value: visit.type },
-    // Weekday comes off the date, so it cannot be typed wrong.
-    { id: 'date', label: 'Date', value: formatFullDay(visit.date) },
+    {
+      id: 'date',
+      label: 'Date',
+      value: stripDate.format(new Date(`${visit.date}T00:00:00Z`)),
+    },
     {
       id: 'time',
       label: 'Time',
-      value: `${formatTime(visit.start)} – ${formatTime(visit.end)} (${visit.durationHours}h)`,
+      value: `${formatTime(visit.start)} (${visit.durationHours}h)`,
     },
-    {
-      id: 'needs',
-      label: 'Normally needs',
-      value: required ?? 'No specific certification',
-    },
-    // Stated plainly — the screen was recommending the incumbent as a fresh
-    // assignment with nothing saying the visit already had a caregiver.
-    {
-      id: 'current',
-      label: 'Currently assigned',
-      value: visit.caregiverName ?? 'Nobody',
-    },
+    ...(address ? [{ id: 'location', label: 'Location', value: address }] : []),
+    // Kept on a reassignment, so the incumbent is never mistaken for a fresh
+    // recommendation.
+    ...(visit.caregiverName
+      ? [{ id: 'current', label: 'Currently assigned', value: visit.caregiverName }]
+      : []),
   ]
 
   return (
-    <Panel
-      title="The visit"
-      badge={<PriorityBadge priority={visit.priority} />}
-      action={{
-        label: 'Open the visit record',
-        to: `/scheduling/visits/${visit.id}/overview`,
-      }}
-    >
-      <p className="text-ink text-base font-semibold break-words">
-        {visit.recipientName}
-      </p>
-      <dl className="mt-3 grid grid-cols-1 gap-x-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-        {rows.map((row) => (
-          <div key={row.id} className="border-line border-t py-2 first:border-t-0 sm:border-t-0">
-            <dt className="text-ink-subtle text-xs">{row.label}</dt>
-            <dd className="text-ink mt-0.5 text-sm font-medium break-words">
-              {row.value}
-            </dd>
+    <section aria-labelledby="visit-strip" className="card p-4 sm:px-7 sm:py-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 id="visit-strip" className="text-ink text-lg font-bold tracking-tight break-words">
+          <Link
+            to={`/scheduling/visits/${visit.id}/overview`}
+            className="hover:text-brand-700"
+          >
+            {visit.recipientName}
+          </Link>
+        </h2>
+        <PriorityBadge priority={visit.priority} square />
+      </div>
+      <dl className="mt-1.5 flex flex-wrap gap-x-7 gap-y-1 text-sm">
+        {facts.map((f) => (
+          <div key={f.id} className="flex min-w-0 gap-1">
+            <dt className="text-ink font-semibold">{f.label}:</dt>
+            <dd className="text-ink-muted break-words">{f.value}</dd>
           </div>
         ))}
       </dl>
@@ -404,7 +511,7 @@ function VisitStrip({
           </span>
         </p>
       )}
-    </Panel>
+    </section>
   )
 }
 
@@ -425,11 +532,30 @@ function CandidateCard({
   selected: boolean
   onSelect: () => void
 }) {
-  const { member, factors, eligible, score, current } = candidate
+  const { member, factors, eligible, current } = candidate
   const blockers = factors.filter((f) => f.weight === 'blocker')
   const cautions = factors.filter((f) => f.weight === 'caution')
-  const pluses = factors.filter((f) => f.weight === 'plus')
   const headingId = `candidate-${member.id}`
+  const miles = travelMiles(member.id, visit.recipientId)
+  const muted = !eligible && !current
+
+  // One line for where they stand at the visit's time: a clash outranks a
+  // window, and a window that only partly covers the visit says so.
+  const status = candidate.clash
+    ? {
+        dot: 'bg-red-400',
+        text: `Busy ${formatTime(candidate.clash.start)} – ${formatTime(candidate.clash.end)}`,
+      }
+    : candidate.coverage === 'full' && candidate.window
+      ? { dot: 'bg-brand-600', text: `Available from ${formatTime(candidate.window.start)}` }
+      : candidate.coverage === 'partial' && candidate.window
+        ? {
+            dot: 'bg-amber-500',
+            text: `Available ${formatTime(candidate.window.start)} – ${formatTime(candidate.window.end)} (partly)`,
+          }
+        : { dot: 'bg-ink-subtle', text: `Not available on ${visit.day}` }
+
+  const outlined = best || selected
 
   return (
     <li>
@@ -438,126 +564,87 @@ function CandidateCard({
       <article
         aria-labelledby={headingId}
         className={cn(
-          'card flex h-full flex-col p-4 transition-colors',
-          selected && 'ring-brand-500 ring-2',
-          !eligible && 'bg-sunken/40',
+          'card flex h-full flex-col p-5 transition-colors',
+          outlined && 'border-brand-600 ring-brand-600 ring-1',
         )}
       >
-        <div className="flex items-start gap-3">
-          <Avatar name={member.name} decorative className="size-10" />
-          <div className="min-w-0 flex-1">
-            <h3 id={headingId} className="text-ink text-sm font-semibold break-words">
-              <Link
-                to={`/caregivers/${member.id}/overview`}
-                className="hover:text-brand-700"
-              >
-                {member.name}
-              </Link>
-            </h3>
-            {/* Their real title, not "CNA" for everyone — the roster holds
-                RNs, a live-in assistant and coordinators. */}
-            <p className="text-ink-subtle text-xs break-words">
-              {member.title} · {member.branch}
-            </p>
+        <div className={cn('flex flex-1 flex-col', muted && 'opacity-60')}>
+          <div className="border-line/60 flex items-start gap-3 border-b pb-4">
+            <Avatar name={member.name} decorative className="size-11 shrink-0 text-sm" />
+            <div className="min-w-0 flex-1">
+              <h3 id={headingId} className="text-ink text-base font-semibold break-words">
+                <Link
+                  to={`/caregivers/${member.id}/overview`}
+                  className="hover:text-brand-700"
+                >
+                  {member.name}
+                </Link>
+              </h3>
+              <p className="text-ink-muted text-sm break-words">{member.title}</p>
+            </div>
+            {current ? (
+              <span className="bg-sunken text-ink shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold">
+                On this visit
+              </span>
+            ) : (
+              best && (
+                <span className="bg-sunken text-ink shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold">
+                  Best Match
+                </span>
+              )
+            )}
           </div>
-          {current ? (
-            <span className="bg-sunken text-ink-muted shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold">
-              On this visit
-            </span>
-          ) : (
-            best && (
-              <span className="bg-brand-600 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold text-white">
-                Best match
-              </span>
-            )
-          )}
-        </div>
 
-        {eligible && score !== null ? (
-          <div className="mt-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-ink-subtle text-xs">Match</span>
-              <span className="text-ink text-xs font-semibold tabular-nums">
-                {score} / 100
+          <ul className="border-line/60 text-ink space-y-1.5 border-b py-4 text-sm">
+            <li className="flex items-center gap-2.5">
+              <span aria-hidden="true" className="grid size-4 shrink-0 place-items-center">
+                <span className={cn('size-2 rounded-full', status.dot)} />
               </span>
-            </div>
-            <div
-              role="progressbar"
-              aria-valuenow={score}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Match score for ${member.name}`}
-              className="bg-sunken mt-1 h-1.5 overflow-hidden rounded-full"
-            >
-              <div
-                className="bg-brand-600 h-full rounded-full"
-                style={{ width: `${score}%` }}
-              />
-            </div>
-            {/* Every criterion that fed the number, so it can be added up. A
-                criterion that cannot apply is absent from both sides. */}
-            <ul className="text-ink-subtle mt-1.5 space-y-0.5 text-xs">
-              {candidate.scoreParts.map((part) => (
-                <li key={part.id} className="flex justify-between gap-2">
-                  <span className="min-w-0 break-words">{part.label}</span>
-                  <span className="shrink-0 tabular-nums">
-                    {part.points} / {part.max}
-                  </span>
-                </li>
+              <span className="min-w-0 break-words">{status.text}</span>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <MapPin className="text-ink-subtle size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+              <span>{miles === null ? 'Distance unknown' : `${formatMiles(miles)} away`}</span>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <CalendarDays className="text-ink-subtle size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+              <span className="min-w-0 break-words">
+                Load: {candidate.dayLoad} visit{candidate.dayLoad === 1 ? '' : 's'} that day ·{' '}
+                {candidate.weekHours}h of {candidate.contractHours}h this week
+              </span>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <Star className="size-4 shrink-0 text-amber-500" strokeWidth={1.9} aria-hidden="true" />
+              {candidate.rating === null ? (
+                <span className="text-ink-muted">Not yet rated</span>
+              ) : (
+                <span>
+                  <span className="font-semibold">{candidate.rating.toFixed(1)}/5.0</span>{' '}
+                  <span className="text-ink-muted">(Rating)</span>
+                </span>
+              )}
+            </li>
+          </ul>
+
+          <Credentials candidate={candidate} visit={visit} />
+
+          {(blockers.length > 0 || cautions.length > 0) && (
+            <ul className="mt-3 space-y-1.5">
+              {[...blockers, ...cautions].map((factor) => (
+                <FactorRow key={`${factor.weight}-${factor.id}`} factor={factor} />
               ))}
             </ul>
-          </div>
-        ) : (
-          <p className="text-ink-subtle mt-3 text-xs font-semibold">
-            Not rankable — see below
-          </p>
-        )}
+          )}
 
-        <dl className="divide-line mt-3 divide-y text-sm">
-          <Fact
-            label={`${visit.day} availability`}
-            value={
-              candidate.window
-                ? `${formatTime(candidate.window.start)} – ${formatTime(candidate.window.end)}`
-                : 'None set'
-            }
-          />
-          <Fact
-            label={`Week of ${formatWeekRange(weekStart(visit.date))}`}
-            value={`${candidate.weekHours}h of ${candidate.contractHours}h contracted`}
-          />
-          <Fact
-            label="That day"
-            value={`${candidate.dayLoad} visit${candidate.dayLoad === 1 ? '' : 's'} already booked`}
-          />
-          <Fact
-            label="Rating"
-            value={
-              candidate.rating === null
-                ? 'Not yet rated'
-                : `${candidate.rating.toFixed(1)} from ${candidate.ratedOn} client${candidate.ratedOn === 1 ? '' : 's'}`
-            }
-          />
-        </dl>
-
-        <Credentials candidate={candidate} visit={visit} />
-
-        {(blockers.length > 0 || cautions.length > 0 || pluses.length > 0) && (
-          <ul className="mt-3 space-y-1.5">
-            {[...blockers, ...cautions, ...pluses].map((factor) => (
-              <FactorRow key={`${factor.weight}-${factor.id}`} factor={factor} />
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-4 flex-1" />
+          <div className="mt-4 flex-1" />
+        </div>
 
         {current ? (
-          <p className="border-line text-ink-muted inline-flex h-11 w-full items-center justify-center rounded-lg border border-dashed text-sm font-medium">
+          <p className="bg-sunken text-ink-muted inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-semibold">
             Already on this visit
           </p>
         ) : closed ? (
-          <p className="border-line text-ink-subtle inline-flex h-11 w-full items-center justify-center rounded-lg border border-dashed text-sm font-medium">
+          <p className="bg-sunken text-ink-muted inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-semibold">
             The visit is over
           </p>
         ) : eligible ? (
@@ -566,37 +653,27 @@ function CandidateCard({
             onClick={onSelect}
             aria-pressed={selected}
             className={cn(
-              'inline-flex h-11 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors',
-              cautions.length > 0
+              'inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors',
+              // Outlined when assigning them needs someone's sign-off.
+              cautions.length > 0 && !selected
                 ? 'border-brand-600 text-brand-700 hover:bg-brand-50 border'
                 : 'bg-brand-600 hover:bg-brand-700 text-white',
             )}
           >
-            {/* The label says what assigning them would actually mean. */}
-            {selected
-              ? 'Selected'
-              : cautions.length > 0
-                ? 'Assign with sign-off'
-                : 'Assign'}
+            {selected ? 'Selected' : 'Assign'}
+            <span className="sr-only">
+              {' '}
+              {member.name}
+              {cautions.length > 0 && ', needs sign-off'}
+            </span>
           </button>
         ) : (
-          <p className="border-line text-ink-subtle inline-flex h-11 w-full items-center justify-center rounded-lg border border-dashed text-sm font-medium">
-            Cannot be assigned
+          <p className="bg-sunken text-ink-muted inline-flex h-10 w-full items-center justify-center rounded-lg text-sm font-semibold opacity-70">
+            Ineligible
           </p>
         )}
       </article>
     </li>
-  )
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-wrap justify-between gap-x-3 py-1.5">
-      <dt className="text-ink-muted min-w-0 text-xs">{label}</dt>
-      <dd className="text-ink min-w-0 text-right text-xs font-medium break-words">
-        {value}
-      </dd>
-    </div>
   )
 }
 
@@ -613,18 +690,20 @@ function Credentials({
     candidate.member,
     visit.date > TODAY ? visit.date : TODAY,
   )
+  const credentialNames = new Set(states.map((s) => s.credential.name.toLowerCase()))
+  const skills = candidate.matchedSkills.filter((s) => !credentialNames.has(s.toLowerCase()))
 
   return (
-    <div className="mt-3">
-      <p className="text-ink-subtle text-xs font-semibold tracking-wide uppercase">
-        Credentials
+    <div className="pt-4">
+      <p className="text-ink-muted text-xs font-semibold tracking-wide uppercase">
+        Certifications &amp; Skills
       </p>
-      <ul className="mt-1.5 flex flex-wrap gap-1.5">
+      <ul className="mt-2 flex flex-wrap gap-1.5">
         {states.map(({ credential, state }) => (
           <li
             key={credential.id}
             className={cn(
-              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
+              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs',
               state === 'expired'
                 ? 'bg-red-50 text-red-700'
                 : state === 'expiring'
@@ -634,8 +713,18 @@ function Credentials({
           >
             {credential.name}
             {/* The word, not just the colour. */}
-            {state === 'expired' && <span> · lapsed</span>}
-            {state === 'expiring' && <span> · renewal due</span>}
+            {state === 'expired' ? (
+              <span>(Expired)</span>
+            ) : state === 'expiring' ? (
+              <span>(Renewal due)</span>
+            ) : (
+              <Check className="size-3" strokeWidth={2.4} aria-label="valid" />
+            )}
+          </li>
+        ))}
+        {skills.map((skill) => (
+          <li key={skill} className="bg-sunken text-ink-muted rounded-md px-2 py-0.5 text-xs">
+            {skill}
           </li>
         ))}
       </ul>
@@ -644,26 +733,24 @@ function Credentials({
 }
 
 const factorStyles: Record<Factor['weight'], string> = {
-  blocker: 'text-red-800 bg-red-50 border-red-200',
-  caution: 'text-amber-900 bg-amber-50 border-amber-200',
-  plus: 'text-emerald-900 bg-emerald-50 border-emerald-200',
+  blocker: 'text-red-700 bg-red-50',
+  caution: 'text-amber-800 bg-amber-50',
+  plus: 'text-emerald-800 bg-emerald-50',
 }
 
 function FactorRow({ factor }: { factor: Factor }) {
-  const Icon =
-    factor.weight === 'blocker' ? X : factor.weight === 'caution' ? TriangleAlert : Check
-
   return (
     <li
+      title={factor.detail}
       className={cn(
-        'flex gap-2 rounded-lg border p-2 text-xs',
+        'flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-medium',
         factorStyles[factor.weight],
       )}
     >
-      <Icon className="mt-0.5 size-3.5 shrink-0" strokeWidth={2.4} aria-hidden="true" />
-      <span className="min-w-0">
-        <span className="font-semibold break-words">{factor.label}.</span>{' '}
-        <span className="break-words">{factor.detail}</span>
+      <TriangleAlert className="mt-px size-3.5 shrink-0" strokeWidth={2.2} aria-hidden="true" />
+      <span className="min-w-0 break-words">
+        {factor.label}
+        <span className="sr-only">. {factor.detail}</span>
       </span>
     </li>
   )
@@ -718,7 +805,7 @@ function ConfirmBar({
           <button
             type="button"
             onClick={onClear}
-            className="border-line text-ink hover:bg-sunken inline-flex h-11 items-center rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-11 items-center rounded-lg border px-4 text-sm font-medium"
           >
             Change
           </button>

@@ -1,6 +1,22 @@
-import { useMemo } from 'react'
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Download, Plus, Upload } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  Link,
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
+import {
+  ArrowUpDown,
+  Columns3,
+  Download,
+  Pencil,
+  Plus,
+  Search,
+  Send,
+  SlidersHorizontal,
+  Upload,
+} from 'lucide-react'
 import {
   ACCOUNTS_PAGE_SIZE,
   accountStatus,
@@ -29,6 +45,8 @@ import { Pagination } from '@/components/ui/Pagination'
 import { SelectFilter } from '@/components/ui/SelectFilter'
 import { Drawer } from '@/components/ui/Drawer'
 import { Avatar } from '@/components/ui/Avatar'
+import { DropdownMenu } from '@/components/ui/DropdownMenu'
+import type { MenuItem } from '@/components/ui/DropdownMenu'
 import { tonePill } from '@/lib/tone'
 import { cn } from '@/lib/cn'
 
@@ -57,8 +75,8 @@ export function FamiliesPage() {
 
   const query = params.get('q') ?? ''
   const status = isStatus(params.get('status'))
-  const sort = (sortOptions.find((o) => o.value === params.get('sort'))?.value ??
-    'name') as AccountSort
+  const sort = (sortOptions.find((o) => o.value === params.get('sort'))
+    ?.value ?? 'name') as AccountSort
   const page = Math.max(1, Math.floor(Number(params.get('page') ?? '1')) || 1)
 
   const setParam = (key: string, value: string | null) => {
@@ -124,15 +142,43 @@ export function FamiliesPage() {
   }).toString()
   const suffix = search ? `?${search}` : ''
 
+  /*
+   * Selection is real client state and survives paging, so the count in the
+   * bar is the number of people the next bulk action would touch — not the
+   * number of ticks currently on screen.
+   */
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const pageIds = rows.map((a) => a.id)
+  const pickedOnPage = pageIds.filter((id) => picked.has(id)).length
+  const allOnPagePicked = pageIds.length > 0 && pickedOnPage === pageIds.length
+
+  const togglePick = (id: string) =>
+    setPicked((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const togglePage = () =>
+    setPicked((current) => {
+      const next = new Set(current)
+      if (allOnPagePicked) pageIds.forEach((id) => next.delete(id))
+      else pageIds.forEach((id) => next.add(id))
+      return next
+    })
+
   const selected = getFamilyAccount(accountId)
   const closeDrawer = () => navigate(`/families${suffix}`, { replace: true })
 
   // An id that resolves to nothing left the URL stale and the drawer shut.
-  if (accountId && !selected) return <Navigate to={`/families${suffix}`} replace />
+  if (accountId && !selected)
+    return <Navigate to={`/families${suffix}`} replace />
 
   // The open contact can sit outside the filters or on another page; saying so
   // beats a highlighted row the reader cannot find.
-  const selectionHidden = Boolean(selected) && !rows.some((a) => a.id === accountId)
+  const selectionHidden =
+    Boolean(selected) && !rows.some((a) => a.id === accountId)
 
   /*
    * Two different populations, which the source design stacked as "187 total
@@ -184,10 +230,12 @@ export function FamiliesPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-ink text-2xl font-bold tracking-tight">Families</h1>
+          <h1 className="text-ink text-2xl font-bold tracking-tight">
+            Families
+          </h1>
           <p className="text-ink-muted mt-1 text-sm">
-            Family accounts, communication, portal permissions and the care
-            recipients each contact is attached to.
+            Manage family accounts, communication, permissions, and linked care
+            recipients.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -198,7 +246,7 @@ export function FamiliesPage() {
             <button
               key={label}
               type="button"
-              className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+              className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
             >
               <Icon className="size-4" strokeWidth={1.9} aria-hidden="true" />
               {label}
@@ -227,73 +275,157 @@ export function FamiliesPage() {
               <p className="text-ink mt-2 text-2xl font-bold tracking-tight tabular-nums">
                 {t.value}
               </p>
-              <p className="text-ink-subtle mt-1 text-xs break-words">{t.hint}</p>
+              <p className="text-ink-subtle mt-1 text-xs break-words">
+                {t.hint}
+              </p>
             </article>
           ))}
         </div>
       </section>
 
       <Panel title="Family contacts" flush>
-        <div
-          role="group"
-          aria-label="Filter contacts by status"
-          className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pb-3"
-        >
-          {tabs.map((value) => {
-            const active = status === value
-            const count =
-              value === 'all' ? familyAccounts.length : counts[value]
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setParam('status', value === 'all' ? null : value)}
-                className={cn(
-                  'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors',
-                  active
-                    ? 'bg-brand-600 text-white'
-                    : 'text-ink-muted hover:bg-sunken',
-                )}
-              >
-                {tabLabels[value]}
-                <span className={active ? 'text-white' : 'text-ink-subtle'}>
-                  {count}
-                </span>
-              </button>
-            )
-          })}
+        {/* Chips, search and the view controls are one line in the design.
+            The search has a small flex basis so it grows into whatever is left
+            rather than breaking the line early — flex wraps on an item's basis
+            before it shrinks anything. */}
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
+          <div
+            role="group"
+            aria-label="Filter contacts by status"
+            className="flex flex-wrap items-center gap-2"
+          >
+            {tabs.map((value) => {
+              // "All" counts what the search left, like the other three — it
+              // used to show the whole directory above a filtered table.
+              const active = status === value
+              const count = value === 'all' ? searched.length : counts[value]
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    setParam('status', value === 'all' ? null : value)
+                  }
+                  className={cn(
+                    'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium transition-colors sm:min-h-9.5',
+                    active
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-sunken text-ink hover:bg-line',
+                  )}
+                >
+                  {tabLabels[value]}
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+                      active
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-surface text-ink-muted',
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <label className="relative w-full sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-32">
+            <span className="sr-only">Search contacts</span>
+            <Search
+              aria-hidden="true"
+              className="text-ink-subtle pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+              strokeWidth={1.8}
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setParam('q', e.target.value)}
+              placeholder="Search name, email, phone, recipient..."
+              className="border-control focus:border-brand-500 h-11 w-full rounded-lg border pr-3 pl-8.5 text-sm sm:h-9.5"
+            />
+          </label>
+
+          <button
+            type="button"
+            className="border-control text-ink hover:bg-sunken inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium sm:min-h-9.5"
+          >
+            <SlidersHorizontal
+              className="size-4 shrink-0"
+              strokeWidth={1.9}
+              aria-hidden="true"
+            />
+            Filters
+          </button>
+          <SelectFilter
+            label="Sort"
+            chip
+            icon={ArrowUpDown}
+            value={sort}
+            onChange={(v) => setParam('sort', v === 'name' ? null : v)}
+            options={sortOptions}
+          />
+          <button
+            type="button"
+            className="border-control text-ink hover:bg-sunken inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium sm:min-h-9.5"
+          >
+            <Columns3
+              className="size-4 shrink-0"
+              strokeWidth={1.9}
+              aria-hidden="true"
+            />
+            Columns
+          </button>
         </div>
 
         {selectionHidden && selected && (
           <p className="border-brand-200 bg-brand-50 text-brand-800 mx-4 mb-3 rounded-lg border px-3 py-2 text-xs">
             {selected.name} is open in the preview but hidden by the current
             filters.{' '}
-            <Link to={`/families/${selected.id}`} className="font-semibold underline">
+            <Link
+              to={`/families/${selected.id}`}
+              className="font-semibold underline"
+            >
               Clear the filters
             </Link>{' '}
             to see the row.
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
-          <label className="min-w-0 flex-1">
-            <span className="sr-only">Search contacts</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setParam('q', e.target.value)}
-              placeholder="Search name, reference, email, phone or recipient"
-              className="border-line focus:border-brand-500 h-10 w-full min-w-40 rounded-lg border px-3 text-sm"
+        {/* Selection is client state; the three actions are not wired to
+            anything yet, so the bar is honest about what it counts and
+            nothing more. */}
+        {picked.size > 0 && (
+          <div className="border-brand-300 bg-brand-50 mx-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+            <Tick
+              checked
+              label={`Clear ${picked.size} selected ${picked.size === 1 ? 'row' : 'rows'}`}
+              onChange={() => setPicked(new Set())}
             />
-          </label>
-          <SelectFilter
-            label="Sort"
-            value={sort}
-            onChange={(v) => setParam('sort', v === 'name' ? null : v)}
-            options={sortOptions}
-          />
-        </div>
+            <span className="text-brand-800 text-sm font-semibold">
+              {picked.size} {picked.size === 1 ? 'row' : 'rows'} selected
+            </span>
+            <span aria-hidden="true" className="bg-brand-300 h-4 w-px" />
+            {[
+              { label: 'Send message', icon: Send },
+              { label: 'Export selected', icon: Download },
+              { label: 'Bulk edit', icon: Pencil },
+            ].map(({ label, icon: Icon }) => (
+              <button
+                key={label}
+                type="button"
+                className="border-control bg-surface text-ink hover:bg-sunken inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium"
+              >
+                <Icon
+                  className="size-4 shrink-0"
+                  strokeWidth={1.9}
+                  aria-hidden="true"
+                />
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {rows.length === 0 ? (
           <p
@@ -313,17 +445,35 @@ export function FamiliesPage() {
               <table className="w-full min-w-4xl text-left text-sm">
                 <thead className="border-line bg-sunken text-ink-muted border-y text-xs">
                   <tr>
-                    {['Contact', 'Relationship', 'Linked recipients', 'Phone', 'Messages', 'Billing', 'Last activity'].map(
-                      (col) => (
-                        <th
-                          key={col}
-                          scope="col"
-                          className="px-4 py-2.5 font-semibold tracking-wide uppercase"
-                        >
-                          {col}
-                        </th>
-                      ),
-                    )}
+                    <th scope="col" className="w-10 px-3 py-2.5">
+                      <Tick
+                        checked={allOnPagePicked}
+                        indeterminate={pickedOnPage > 0}
+                        label="Select every contact on this page"
+                        onChange={togglePage}
+                      />
+                    </th>
+                    {[
+                      'Family member',
+                      'Relationship',
+                      'Linked recipients',
+                      'Phone',
+                      'Communication',
+                      'Billing',
+                      'Last activity',
+                      'Actions',
+                    ].map((col) => (
+                      <th
+                        key={col}
+                        scope="col"
+                        className={cn(
+                          'px-3 py-2.5 font-semibold tracking-wide whitespace-nowrap uppercase',
+                          col === 'Actions' && 'text-right',
+                        )}
+                      >
+                        {col}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-line divide-y">
@@ -331,6 +481,8 @@ export function FamiliesPage() {
                     <ContactRow
                       key={account.id}
                       account={account}
+                      picked={picked.has(account.id)}
+                      onPick={() => togglePick(account.id)}
                       selected={account.id === accountId}
                       to={`/families/${account.id}${suffix}`}
                     />
@@ -344,6 +496,8 @@ export function FamiliesPage() {
                 <ContactCard
                   key={account.id}
                   account={account}
+                  picked={picked.has(account.id)}
+                  onPick={() => togglePick(account.id)}
                   selected={account.id === accountId}
                   to={`/families/${account.id}${suffix}`}
                 />
@@ -384,48 +538,143 @@ export function FamiliesPage() {
   )
 }
 
+/* -------------------------------- selection -------------------------------- */
+
+/**
+ * A real <input type="checkbox"> rather than a styled button: it carries its
+ * own role, state and keyboard handling, and `indeterminate` is a property no
+ * attribute can set, so the header box needs the ref.
+ */
+function Tick({
+  checked,
+  indeterminate = false,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  indeterminate?: boolean
+  label: string
+  onChange: () => void
+}) {
+  return (
+    <input
+      type="checkbox"
+      checked={checked}
+      ref={(el) => {
+        if (el) el.indeterminate = indeterminate && !checked
+      }}
+      onChange={onChange}
+      aria-label={label}
+      className="accent-brand-600 border-control size-4 shrink-0 cursor-pointer rounded-sm"
+    />
+  )
+}
+
 /* ---------------------------------- rows ---------------------------------- */
 
 function LinkedRecipients({ account }: { account: FamilyAccount }) {
   const [first, ...rest] = account.links
-  return (
-    <>
-      <span className="text-ink-muted">{first.name}</span>
-      {rest.length > 0 && (
-        <span className="text-ink-subtle block text-xs">
-          and {rest.map((l) => l.name).join(', ')}
-        </span>
-      )}
-    </>
-  )
-}
-
-function MessageCell({ account }: { account: FamilyAccount }) {
-  const unread = unreadCount(account)
-  if (unread > 0)
+  if (rest.length === 0)
     return (
-      <span className="text-xs font-semibold text-amber-800">
-        {unread} unanswered
-      </span>
+      <span className="text-ink-muted whitespace-nowrap">{first.name}</span>
     )
-  const inbound = account.log.some((e) => e.direction === 'inbound')
+
+  const names = account.links.map((l) => l.name).join(', ')
   return (
-    <span className="text-ink-subtle text-xs">
-      {account.log.length === 0
-        ? 'No activity'
-        : inbound
-          ? 'All answered'
-          : 'Outbound only'}
+    <span className="flex items-center gap-2">
+      <span className="text-ink-muted whitespace-nowrap">
+        {account.links.length} recipients
+      </span>
+      {/* The names are the point, so they stay in the cell rather than moving
+          into a tooltip — truncated with the full list on hover when the
+          column is too narrow for all of them. */}
+      <span
+        title={names}
+        className="bg-sunken text-ink-subtle max-w-36 truncate rounded-md px-1.5 py-0.5 text-xs"
+      >
+        {names}
+      </span>
     </span>
   )
 }
 
+/*
+ * A dot and a word, as the design draws it — but the words are the app's, not
+ * the design's. Nothing here records that a message was *seen*, so "unread"
+ * and "read" would claim a receipt that does not exist and would contradict
+ * the Messages inbox, which counts the same thing as "needs a reply".
+ */
+function CommunicationCell({ account }: { account: FamilyAccount }) {
+  const unread = unreadCount(account)
+  const silent = account.log.length === 0
+  const inbound = account.log.some((e) => e.direction === 'inbound')
+
+  const label =
+    unread > 0
+      ? `${unread} unanswered`
+      : silent
+        ? 'No activity'
+        : inbound
+          ? 'All answered'
+          : 'Outbound only'
+
+  return (
+    <span className="flex items-center gap-2 whitespace-nowrap">
+      <span
+        aria-hidden="true"
+        className={cn(
+          'size-2 shrink-0 rounded-full',
+          unread > 0
+            ? 'bg-amber-500'
+            : silent
+              ? 'bg-ink-subtle'
+              : 'bg-emerald-500',
+        )}
+      />
+      <span
+        className={cn(
+          'text-sm',
+          unread > 0
+            ? 'font-semibold text-amber-800'
+            : silent
+              ? 'text-ink-subtle'
+              : 'text-ink-muted',
+        )}
+      >
+        {label}
+      </span>
+    </span>
+  )
+}
+
+/** Row-width forms of the status words; the filter chips carry the full ones. */
+const shortStatus: Record<AccountStatus, string> = {
+  active: 'Active',
+  inactive: 'Inactive',
+  pending: 'Pending',
+}
+
+function rowMenu(account: FamilyAccount, to: string): MenuItem[] {
+  return [
+    { id: 'open', label: 'Open quick preview', to },
+    {
+      id: 'record',
+      label: `Open ${account.links[0].name}’s record`,
+      to: `/care-recipients/${account.links[0].recipientId}`,
+    },
+  ]
+}
+
 function ContactRow({
   account,
+  picked,
+  onPick,
   selected,
   to,
 }: {
   account: FamilyAccount
+  picked: boolean
+  onPick: () => void
   selected: boolean
   to: string
 }) {
@@ -442,36 +691,66 @@ function ContactRow({
           : 'hover:bg-canvas',
       )}
     >
-      <th scope="row" className="px-4 py-3 font-normal whitespace-nowrap">
+      <td className="px-3 py-3">
+        <Tick
+          checked={picked}
+          label={`Select ${account.name}`}
+          onChange={onPick}
+        />
+      </td>
+      {/* Row header, so every other cell is announced with the person it
+          belongs to. */}
+      <th scope="row" className="px-3 py-3 font-normal">
         <span className="flex items-center gap-2.5">
-          <Avatar name={account.name} decorative className="size-8 shrink-0 text-xs" />
+          <Avatar
+            name={account.name}
+            decorative
+            className="size-8 shrink-0 text-xs"
+          />
           <span className="min-w-0">
-            <Link to={to} className="text-ink hover:text-brand-700 font-medium">
+            <Link
+              to={to}
+              className="text-ink hover:text-brand-700 font-medium whitespace-nowrap"
+            >
               {account.name}
             </Link>
-            <span className="text-ink-subtle block text-xs">
-              {account.ref} · {statusLabels[status]}
+            {/* The design shows the reference alone. The status word stays
+                when it is not "active", because nothing else on this row says
+                so — shortened, so it does not wrap the line in two. */}
+            <span className="text-ink-subtle block text-xs whitespace-nowrap">
+              {account.ref}
+              {status !== 'active' && ` · ${shortStatus[status]}`}
             </span>
           </span>
         </span>
       </th>
-      <td className="text-ink-muted px-4 py-3 whitespace-nowrap">
+      <td className="text-ink-muted px-3 py-3 whitespace-nowrap">
         {relationshipLabel(account)}
       </td>
-      <td className="px-4 py-3 whitespace-nowrap">
+      <td className="px-3 py-3">
         <LinkedRecipients account={account} />
       </td>
-      <td className="text-ink-muted px-4 py-3 whitespace-nowrap">{account.phone}</td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <MessageCell account={account} />
+      <td className="text-ink-muted px-3 py-3 whitespace-nowrap">
+        {account.phone}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
+        <CommunicationCell account={account} />
+      </td>
+      <td className="px-3 py-3">
         <span className={cn(chip, tonePill[billingTones[billing]])}>
           {billingLabels[billing]}
         </span>
       </td>
-      <td className="text-ink-muted px-4 py-3 whitespace-nowrap">
+      <td className="text-ink-muted px-3 py-3 whitespace-nowrap">
         {formatActivity(account)}
+      </td>
+      <td className="px-3 py-3">
+        <div className="flex justify-end">
+          <DropdownMenu
+            label={`Actions for ${account.name}`}
+            items={rowMenu(account, to)}
+          />
+        </div>
       </td>
     </tr>
   )
@@ -479,10 +758,14 @@ function ContactRow({
 
 function ContactCard({
   account,
+  picked,
+  onPick,
   selected,
   to,
 }: {
   account: FamilyAccount
+  picked: boolean
+  onPick: () => void
   selected: boolean
   to: string
 }) {
@@ -499,7 +782,16 @@ function ContactCard({
     >
       <div className="flex items-start justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2.5">
-          <Avatar name={account.name} decorative className="size-9 shrink-0 text-xs" />
+          <Tick
+            checked={picked}
+            label={`Select ${account.name}`}
+            onChange={onPick}
+          />
+          <Avatar
+            name={account.name}
+            decorative
+            className="size-9 shrink-0 text-xs"
+          />
           <span className="min-w-0">
             <Link
               to={to}
@@ -520,7 +812,7 @@ function ContactCard({
         {account.links.map((l) => l.name).join(', ')} · {account.phone}
       </p>
       <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-        <MessageCell account={account} />
+        <CommunicationCell account={account} />
         <span className={cn(chip, tonePill[billingTones[billing]])}>
           {billingLabels[billing]}
         </span>

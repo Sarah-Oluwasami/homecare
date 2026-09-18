@@ -3,6 +3,8 @@ import type { Recipient } from '@/features/care-recipients/data'
 import {
   LOG_WINDOW_DAYS,
   getFamilyRecord,
+  logRevision,
+  newestFirst,
 } from '@/features/care-recipients/family-data'
 import type {
   AccessLevel,
@@ -37,6 +39,12 @@ export interface RecipientLink {
   status: Recipient['status']
 }
 
+/** Where one person's entries sit: their member id under each recipient. */
+export interface LogSource {
+  recipientId: string
+  memberId: string
+}
+
 export type AccountStatus = 'active' | 'inactive' | 'pending'
 
 export type BillingState = 'current' | 'overdue' | 'pending' | 'none'
@@ -57,7 +65,15 @@ export interface FamilyAccount {
   links: RecipientLink[]
   /** Union of the roles they hold across all of those recipients. */
   roles: FamilyRole[]
-  /** Their entries from every linked recipient's log, newest first. */
+  /** Which member record under which recipient is this person. */
+  sources: LogSource[]
+  /**
+   * Their entries from every linked recipient's log, newest first.
+   *
+   * Read live rather than stored: this used to be a copy taken when the module
+   * first loaded, so a contact recorded on a Family tab appeared there and on
+   * the messages thread while the directory carried on showing the old count.
+   */
   log: (CommunicationEntry & { recipientId: string })[]
 }
 
@@ -116,7 +132,38 @@ const accessRank: Record<AccessLevel, number> = { full: 0, view: 1, limited: 2 }
 
 interface Draft {
   members: { member: FamilyMember; link: RecipientLink }[]
-  log: (CommunicationEntry & { recipientId: string })[]
+}
+
+/**
+ * One person's log entries, gathered across every recipient they act for and
+ * ordered newest first.
+ *
+ * Memoised against the log's revision rather than recomputed per read: the
+ * unread walk touches `account.log` once per link, and a getter that sorted
+ * every time turned that into a resort per row per render.
+ */
+const logCache = new WeakMap<
+  LogSource[],
+  { revision: number; entries: (CommunicationEntry & { recipientId: string })[] }
+>()
+
+function entriesFor(
+  sources: LogSource[],
+): (CommunicationEntry & { recipientId: string })[] {
+  const revision = logRevision()
+  const cached = logCache.get(sources)
+  if (cached && cached.revision === revision) return cached.entries
+
+  const entries = sources
+    .flatMap(({ recipientId, memberId }) =>
+      (getFamilyRecord(recipientId)?.log ?? [])
+        .filter((e) => e.memberId === memberId)
+        .map((e) => ({ ...e, recipientId })),
+    )
+    .sort(newestFirst)
+
+  logCache.set(sources, { revision, entries })
+  return entries
 }
 
 /*
@@ -136,7 +183,7 @@ function build(): FamilyAccount[] {
 
     for (const member of record.members) {
       const key = identity(member, recipient.id)
-      const draft = drafts.get(key) ?? { members: [], log: [] }
+      const draft = drafts.get(key) ?? { members: [] }
 
       draft.members.push({
         member,
@@ -148,11 +195,6 @@ function build(): FamilyAccount[] {
           status: recipient.status,
         },
       })
-      draft.log.push(
-        ...record.log
-          .filter((e) => e.memberId === member.id)
-          .map((e) => ({ ...e, recipientId: recipient.id })),
-      )
       drafts.set(key, draft)
     }
   }
@@ -200,9 +242,10 @@ function build(): FamilyAccount[] {
       portalEnabled,
       links: ordered.map((m) => m.link),
       roles,
-      log: [...draft.log].sort(
-        (a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id),
-      ),
+      sources: ordered.map((m) => ({
+        recipientId: m.link.recipientId,
+        memberId: m.member.id,
+      })),
     }
   })
 
@@ -210,11 +253,17 @@ function build(): FamilyAccount[] {
   // page out of sequence.
   return accounts
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((account, i) => ({
-      ...account,
-      id: `fam-${1029 + i}`,
-      ref: `#FAM-${1029 + i}`,
-    }))
+    .map((account, i) => {
+      const { sources } = account
+      return {
+        ...account,
+        id: `fam-${1029 + i}`,
+        ref: `#FAM-${1029 + i}`,
+        get log() {
+          return entriesFor(sources)
+        },
+      }
+    })
 }
 
 export const familyAccounts: FamilyAccount[] = build()

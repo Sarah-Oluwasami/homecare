@@ -23,11 +23,6 @@ const lazyRoute =
 /** Routes still awaiting a real screen. Keeps the nav fully clickable. */
 const stubs: { path: string; title: string; description: string }[] = [
   {
-    path: 'messages',
-    title: 'Messages',
-    description: 'Conversations with caregivers, families and clients.',
-  },
-  {
     path: 'reports',
     title: 'Reports',
     description: 'Operational and compliance reporting.',
@@ -308,6 +303,19 @@ export const router = createBrowserRouter([
           {
             path: 'tasks',
             lazy: lazyRoute(() => import('@/pages/TasksPage'), 'TasksPage'),
+          },
+          /*
+           * One route, with the open conversation as an optional segment — the
+           * inbox is the same screen with nothing open, and splitting it into
+           * an index route plus a nested one would reconcile as two different
+           * components and throw away the search and folder on every click.
+           *
+           * `entryId` addresses a conversation *or* a notice; the two share the
+           * slot because they share the pane, and their ids cannot collide.
+           */
+          {
+            path: 'messages/:entryId?',
+            lazy: lazyRoute(() => import('@/pages/MessagesPage'), 'MessagesPage'),
           },
           {
             path: 'tasks/templates',

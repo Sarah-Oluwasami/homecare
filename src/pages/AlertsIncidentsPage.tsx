@@ -1156,7 +1156,7 @@ function EmergencyCard({ alert, now }: { alert: LiveAlert; now: string }) {
           {alert.contact && (
             <a
               href={telHref(alert.contact.phone)}
-              className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+              className="border-control text-ink hover:bg-sunken inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
             >
               <Phone className="size-4" strokeWidth={1.9} aria-hidden="true" />
               {alert.contact.label}

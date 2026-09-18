@@ -1,16 +1,13 @@
 import {
-  Check,
   FileText,
   Plus,
-  ShieldCheck,
+  Shield,
   TriangleAlert,
-  Upload,
 } from 'lucide-react'
 import type { ComplianceState, StaffMember } from './staff'
 import {
   RENEWAL_WINDOW_DAYS,
   complianceLabels,
-  complianceTones,
   credentialStates,
 } from './roster-data'
 import {
@@ -18,18 +15,12 @@ import {
   documentsFor,
   formatDate,
   formatMonth,
-  renewalFor,
   trainingFor,
-  trainingHours,
   trainingState,
 } from './documents-data'
-import type { StaffDocument, TrainingRecord } from './documents-data'
-import { Panel } from '@/components/ui/Panel'
+import type { StaffDocument } from './documents-data'
 import { tonePill } from '@/lib/tone'
 import { cn } from '@/lib/cn'
-
-const chip =
-  'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap'
 
 /**
  * Per-credential wording only. The *overall* state uses `complianceLabels`,
@@ -43,17 +34,22 @@ const stateLabel: Record<ComplianceState, string> = {
 }
 
 const stateTone: Record<ComplianceState, string> = {
-  compliant: tonePill.green,
+  compliant: 'bg-brand-50 text-brand-700',
   expiring: tonePill.amber,
   expired: tonePill.red,
 }
+
+const expiryMonth = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
 
 export function DocumentsTab({ member }: { member: StaffMember }) {
   const summary = documentSummary(member)
   const states = credentialStates(member)
   const documents = documentsFor(member)
   const training = trainingFor(member)
-  const hours = trainingHours(member)
 
   return (
     <div className="space-y-4">
@@ -62,33 +58,36 @@ export function DocumentsTab({ member }: { member: StaffMember }) {
       {/* Status strip. Every figure is counted from the lists below, and the
           "next expiry" is the next one still to come — the source design
           counted down 85 days to a date four months in the past. */}
-      <section className="card grid grid-cols-1 divide-y divide-[var(--color-line)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <div className="flex items-start gap-3 p-4">
+      <section
+        aria-label="Compliance summary"
+        className="card grid grid-cols-1 gap-y-4 px-5 py-5 sm:grid-cols-3 sm:gap-y-0"
+      >
+        <div className="flex items-center gap-4 sm:pr-6">
           <span
             className={cn(
-              'grid size-9 shrink-0 place-items-center rounded-full',
+              'grid size-11 shrink-0 place-items-center rounded-xl',
               summary.compliance === 'compliant'
-                ? 'bg-emerald-50 text-emerald-700'
+                ? 'bg-brand-50 text-brand-600'
                 : summary.compliance === 'expiring'
                   ? 'bg-amber-50 text-amber-700'
                   : 'bg-red-50 text-red-700',
             )}
           >
             {summary.compliance === 'compliant' ? (
-              <ShieldCheck className="size-4.5" strokeWidth={1.9} aria-hidden="true" />
+              <Shield className="size-5" strokeWidth={1.9} aria-hidden="true" />
             ) : (
-              <TriangleAlert className="size-4.5" strokeWidth={1.9} aria-hidden="true" />
+              <TriangleAlert className="size-5" strokeWidth={1.9} aria-hidden="true" />
             )}
           </span>
           <div className="min-w-0">
-            <p className="text-ink-subtle text-xs font-semibold tracking-wider uppercase">
-              Overall status
+            <p className="text-ink-subtle text-xs font-medium tracking-wide uppercase">
+              Overall Status
             </p>
             <p
               className={cn(
-                'mt-1 text-lg font-bold tracking-tight break-words',
+                'mt-0.5 text-lg font-bold tracking-tight break-words',
                 summary.compliance === 'compliant'
-                  ? 'text-emerald-700'
+                  ? 'text-brand-700'
                   : summary.compliance === 'expiring'
                     ? 'text-amber-700'
                     : 'text-red-700',
@@ -104,27 +103,25 @@ export function DocumentsTab({ member }: { member: StaffMember }) {
           </div>
         </div>
 
-        <div className="p-4">
-          <p className="text-ink-subtle text-xs font-semibold tracking-wider uppercase">
-            Next expiry
+        <div className="border-line/70 min-w-0 sm:border-l sm:px-7">
+          <p className="text-ink-subtle text-xs font-medium tracking-wide uppercase">
+            Next Impending Expiry
           </p>
           {summary.nextExpiry ? (
             <>
-              <p className="text-ink mt-1 text-sm font-semibold break-words">
-                {summary.nextExpiry.credential.name}
+              <p className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="text-ink text-base font-semibold break-words">
+                  {summary.nextExpiry.credential.name}
+                </span>
+                <span className="rounded-md bg-[#fcf3cc] px-2 py-0.5 text-xs font-medium whitespace-nowrap text-[#8a4a1c]">
+                  Expires {expiryMonth.format(new Date(`${summary.nextExpiry.credential.expiresAt!}T00:00:00Z`))}
+                </span>
               </p>
-              <p
-                className={cn(
-                  'mt-0.5 text-xs break-words',
-                  summary.nextExpiry.days <= RENEWAL_WINDOW_DAYS
-                    ? 'font-medium text-amber-700'
-                    : 'text-ink-subtle',
-                )}
-              >
-                {formatDate(summary.nextExpiry.credential.expiresAt!)} —{' '}
-                {summary.nextExpiry.days} days remaining
-                {summary.nextExpiry.days <= RENEWAL_WINDOW_DAYS &&
-                  `, inside the ${RENEWAL_WINDOW_DAYS}-day renewal window`}
+              <p className="text-ink-subtle/70 mt-1 text-xs break-words">
+                {summary.nextExpiry.days} day{summary.nextExpiry.days === 1 ? '' : 's'} remaining
+                {summary.nextExpiry.days <= RENEWAL_WINDOW_DAYS
+                  ? ' — schedule review shortly.'
+                  : '.'}
               </p>
             </>
           ) : (
@@ -134,359 +131,281 @@ export function DocumentsTab({ member }: { member: StaffMember }) {
           )}
         </div>
 
-        <div className="p-4">
-          <p className="text-ink-subtle text-xs font-semibold tracking-wider uppercase">
-            On file
+        <div className="border-line/70 min-w-0 sm:border-l sm:pl-7">
+          <p className="text-ink-subtle text-xs font-medium tracking-wide uppercase">
+            Stats Summary
           </p>
-          <p className="text-ink mt-1 text-lg font-bold tracking-tight tabular-nums">
-            {summary.count} document{summary.count === 1 ? '' : 's'}
+          <p className="text-ink mt-1 text-lg font-bold tracking-tight">
+            {summary.count} Document{summary.count === 1 ? '' : 's'} on File
           </p>
           <p className="text-ink-subtle mt-0.5 text-xs">
             {summary.lastUpdated
-              ? `Last upload ${formatDate(summary.lastUpdated)}`
+              ? `Last updated ${formatDate(summary.lastUpdated)}`
               : 'Nothing uploaded yet'}
           </p>
         </div>
       </section>
 
-      <Panel
-        title="Certifications and licences"
-        badge={
-          <span
-            className={cn(chip, tonePill[complianceTones[summary.compliance]], 'shrink-0')}
-          >
-            {summary.expired.length > 0
-              ? `${summary.expired.length} expired`
-              : complianceLabels[summary.compliance]}
-          </span>
-        }
-        flush
-      >
-        <div
-          tabIndex={0}
-          role="region"
-          aria-label="Certifications and licences table"
-          className="hidden overflow-x-auto xl:block"
-        >
-          <table className="w-full min-w-3xl text-left text-sm">
-            <thead className="border-line bg-sunken text-ink-muted border-y text-xs">
-              <tr>
-                {['Credential', 'Reference', 'Issued or cleared', 'Expires', 'Status', 'File'].map(
-                  (col) => (
-                    <th
-                      key={col}
-                      scope="col"
-                      className="px-4 py-2.5 font-semibold tracking-wide uppercase"
-                    >
-                      {col}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-line divide-y">
-              {states.map(({ credential, state, daysRemaining }) => {
-                const renewal = renewalFor(member, credential.id)
-                const file = documents.find((d) => d.credentialId === credential.id)
+      <DocCard title="Certifications & Licenses" add="Add Certification" member={member}>
+        <table className="w-full min-w-3xl text-left text-sm">
+          <TableHead
+            columns={['Certification', 'License #', 'Issued', 'Expires', 'Status', 'Document', 'Actions']}
+          />
+          <tbody className="divide-line/70 divide-y">
+            {states.map(({ credential, state }) => {
+              const file = documents.find((d) => d.credentialId === credential.id)
+              const issued = credential.issuedAt ?? credential.clearedAt
+              return (
+                <tr key={credential.id}>
+                  <th scope="row" className={cellName}>
+                    {credential.name}
+                  </th>
+                  <td className={cell}>{credential.reference ?? '—'}</td>
+                  <td className={cell}>{issued ? formatMonth(issued) : '—'}</td>
+                  <td className={cell}>
+                    {credential.expiresAt ? formatMonth(credential.expiresAt) : 'No expiry'}
+                  </td>
+                  <td className={cell}>
+                    <StatusTag tone={credential.expiresAt ? stateTone[state] : brandTag}>
+                      {credential.expiresAt ? stateLabel[state] : 'Cleared'}
+                    </StatusTag>
+                  </td>
+                  <td className={cell}>
+                    {file ? (
+                      <button type="button" className={cn(linkBtn, 'inline-flex items-center gap-1.5')}>
+                        <FileText className="size-4" strokeWidth={1.9} aria-hidden="true" />
+                        View PDF
+                        <span className="sr-only"> {file.fileName}</span>
+                      </button>
+                    ) : (
+                      <span className="text-ink-subtle">No file</span>
+                    )}
+                  </td>
+                  <td className={cn(cell, 'text-right')}>
+                    <span className="inline-flex items-center gap-4">
+                      {/* Only something that lapses can be renewed. */}
+                      {credential.expiresAt && (
+                        <button type="button" className={linkBtn}>
+                          Renew<span className="sr-only"> {credential.name}</span>
+                        </button>
+                      )}
+                      {file && (
+                        <button type="button" className={plainBtn}>
+                          Download<span className="sr-only"> {file.fileName}</span>
+                        </button>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </DocCard>
+
+      <DocCard title="Employment Documents" add="Add Document" member={member}>
+        <table className="w-full min-w-2xl text-left text-sm">
+          <TableHead columns={['Document', 'Category', 'Date', 'Status', 'Actions']} />
+          <tbody className="divide-line/70 divide-y">
+            {documents
+              .filter((d) => d.category === 'employment')
+              .sort((a, b) => employmentOrder(a) - employmentOrder(b))
+              .map((doc) => (
+                <tr key={doc.id}>
+                  <th scope="row" className={cellName}>
+                    {titleCase(doc.name)}
+                  </th>
+                  <td className={cell}>{doc.kind ?? '—'}</td>
+                  <td className={cell}>{formatMonth(doc.uploadedAt)}</td>
+                  <td className={cell}>
+                    <StatusTag tone={brandTag}>{employmentStatus(doc)}</StatusTag>
+                  </td>
+                  <td className={cn(cell, 'text-right')}>
+                    <FileActions file={doc} />
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </DocCard>
+
+      <DocCard title="Training Records" add="Record Training" member={member}>
+        {training.length === 0 ? (
+          <p className="text-ink-muted px-4 py-8 text-center text-sm">No training recorded.</p>
+        ) : (
+          <table className="w-full min-w-2xl text-left text-sm">
+            <TableHead columns={['Training', 'Completed', 'Certificate', 'Hours', 'Actions']} />
+            <tbody className="divide-line/70 divide-y">
+              {training.map((record) => {
+                const state = trainingState(record)
+                const done = state === 'complete'
                 return (
-                  <tr key={credential.id} className="hover:bg-canvas transition-colors">
-                    <th
-                      scope="row"
-                      className="text-ink px-4 py-3 font-medium whitespace-nowrap"
-                    >
-                      {credential.name}
-                      {renewal && (
-                        <span className="text-ink-subtle block text-xs">
-                          {renewal.name}: {renewal.hours} of{' '}
-                          {renewal.requiredHours} hours
-                        </span>
-                      )}
+                  <tr key={record.id}>
+                    <th scope="row" className={cellName}>
+                      {record.name}
+                      {state === 'in-progress' && ' (In Progress)'}
+                      {state === 'not-started' && ' (Not Started)'}
                     </th>
-                    <td className="text-ink-muted px-4 py-3 whitespace-nowrap">
-                      {credential.reference ?? '—'}
+                    <td className={cell}>
+                      {record.completedAt ? formatMonth(record.completedAt) : '—'}
                     </td>
-                    <td className="text-ink-muted px-4 py-3 whitespace-nowrap">
-                      {credential.issuedAt
-                        ? formatMonth(credential.issuedAt)
-                        : credential.clearedAt
-                          ? formatMonth(credential.clearedAt)
-                          : '—'}
+                    <td className={cell}>{done ? 'Yes' : '—'}</td>
+                    <td className={cn(cell, 'tabular-nums')}>
+                      {done ? `${record.hours}h` : `${record.hours}/${record.requiredHours}h`}
                     </td>
-                    <td className="text-ink-muted px-4 py-3 whitespace-nowrap">
-                      {credential.expiresAt ? formatMonth(credential.expiresAt) : 'No expiry'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn(chip, stateTone[state])}>
-                        {credential.expiresAt ? stateLabel[state] : 'Cleared'}
-                      </span>
-                      {credential.expiresAt && daysRemaining !== null && (
-                        <span
-                          className={cn(
-                            'block text-xs',
-                            state === 'expired'
-                              ? 'font-medium text-red-700'
-                              : 'text-ink-subtle',
-                          )}
-                        >
-                          {daysRemaining < 0
-                            ? `${Math.abs(daysRemaining)} days ago`
-                            : `in ${daysRemaining} days`}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {file ? <FileLink file={file} /> : <NoFile />}
+                    <td className={cn(cell, 'text-right')}>
+                      <button type="button" className={linkBtn}>
+                        {done ? 'View Certificate' : state === 'in-progress' ? 'Resume' : 'Start'}
+                        <span className="sr-only"> {record.name}</span>
+                      </button>
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-        </div>
+        )}
+      </DocCard>
 
-        <ul className="divide-line border-line divide-y border-t xl:hidden">
-          {states.map(({ credential, state, daysRemaining }) => {
-            const renewal = renewalFor(member, credential.id)
-            const file = documents.find((d) => d.credentialId === credential.id)
-            return (
-              <li key={credential.id} className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-ink min-w-0 text-sm font-semibold break-words">
-                    {credential.name}
-                  </p>
-                  <span className={cn(chip, stateTone[state])}>
-                    {credential.expiresAt ? stateLabel[state] : 'Cleared'}
-                  </span>
-                </div>
-                <p className="text-ink-muted mt-1 text-sm break-words">
-                  {credential.reference ?? 'No reference'} ·{' '}
-                  {credential.expiresAt
-                    ? `expires ${formatMonth(credential.expiresAt)}`
-                    : 'no expiry'}
-                  {daysRemaining !== null &&
-                    ` · ${
-                      daysRemaining < 0
-                        ? `${Math.abs(daysRemaining)} days ago`
-                        : `in ${daysRemaining} days`
-                    }`}
-                </p>
-                {/* The renewal line and the file were table-only, so below
-                    1280px a lapsed credential's explanation and its evidence
-                    were both unreachable. */}
-                {renewal && (
-                  <p className="text-ink-subtle mt-0.5 text-xs break-words">
-                    {renewal.name}: {renewal.hours} of {renewal.requiredHours}{' '}
-                    hours
-                  </p>
-                )}
-                <div className="mt-1">
-                  {file ? <FileLink file={file} /> : <NoFile />}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-
-        <div className="border-line border-t p-4">
-          <button
-            type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
-          >
-            <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
-            Add credential
-            <span className="sr-only"> for {member.name}</span>
-          </button>
-        </div>
-      </Panel>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Employment documents" flush>
-          <ul className="divide-line border-line divide-y border-t">
-            {documents
-              .filter((d) => d.category === 'employment')
-              .map((doc) => (
-                <li
-                  key={doc.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="text-ink text-sm font-medium break-words">
-                      {doc.name}
-                    </p>
-                    <p className="text-ink-subtle mt-0.5 text-xs break-words">
-                      {doc.kind} · filed {formatMonth(doc.uploadedAt)} by{' '}
-                      {doc.uploadedBy}
-                    </p>
-                  </div>
-                  <FileLink file={doc} />
-                </li>
-              ))}
-          </ul>
-        </Panel>
-
-        <Panel
-          title="Training"
-          badge={
-            <span className="border-line text-ink-muted shrink-0 rounded-full border px-2 py-0.5 text-xs">
-              {hours.completed}h completed
-            </span>
-          }
-          flush
-        >
-          {training.length === 0 ? (
-            <p className="text-ink-subtle border-line border-t px-4 py-8 text-center text-sm">
-              No training recorded.
-            </p>
-          ) : (
-            <ul className="divide-line border-line divide-y border-t">
-              {training.map((record) => (
-                <TrainingRow key={record.id} record={record} />
-              ))}
-            </ul>
-          )}
-          {training.length > 0 && (
-            <p className="text-ink-subtle border-line border-t px-4 py-3 text-xs">
-              {summary.trainingComplete} complete, {summary.trainingInProgress}{' '}
-              outstanding. {hours.inProgress}h logged against courses still
-              running.
-            </p>
-          )}
-        </Panel>
-      </div>
-
-      <Panel
-        title="Upload history"
-        badge={
-          <span className="border-line text-ink-muted shrink-0 rounded-full border px-2 py-0.5 text-xs">
-            {documents.length}
-          </span>
-        }
-        flush
-      >
-        {/* A view of the same list, not a second one — the source design's
-            history said a card was renewed in the month the table showed it
-            expiring. */}
-        <ol className="divide-line border-line divide-y border-t">
+      {/* A view of the same list, not a second one — the source design's
+          history said a card was renewed in the month the table showed it
+          expiring. */}
+      <section aria-labelledby="upload-history" className="card p-5 sm:p-6">
+        <h3 id="upload-history" className="text-ink text-base font-semibold tracking-tight">
+          Document Upload History
+        </h3>
+        <ol className="mt-4 space-y-3">
           {documents.map((doc) => (
-            <li key={doc.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 p-4">
-              <p className="text-ink-muted w-full text-sm sm:w-32 sm:shrink-0">
-                {formatDate(doc.uploadedAt)}
-              </p>
-              <div className="min-w-0 flex-1 basis-40">
-                <p className="text-ink text-sm font-medium break-words">
-                  {doc.name}
-                </p>
-                <p className="text-ink-subtle mt-0.5 text-xs break-all">
-                  {doc.fileName}
-                </p>
+            <li key={doc.id} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4">
+              <p className="text-ink-muted shrink-0 text-sm sm:w-28">{formatDate(doc.uploadedAt)}</p>
+              <div className="bg-sunken flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2 rounded-lg px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-ink text-sm font-semibold break-words">{historyTitle(doc)}</p>
+                  <p className="text-ink-subtle mt-0.5 text-xs break-all">File: {doc.fileName}</p>
+                </div>
+                <span className="bg-brand-50 text-brand-700 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium">
+                  {doc.category === 'training' ? 'Certificate Uploaded' : `Uploaded by ${doc.uploadedBy}`}
+                </span>
               </div>
-              <span className="border-line text-ink-muted shrink-0 rounded-full border px-2 py-0.5 text-xs">
-                {doc.uploadedBy}
-              </span>
-              {/* The only complete list of files, so it is the only place a
-                  training certificate can be opened. */}
-              <FileLink file={doc} />
             </li>
           ))}
         </ol>
-      </Panel>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="bg-brand-600 hover:bg-brand-700 inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium text-white"
-        >
-          <Upload className="size-4" strokeWidth={1.9} aria-hidden="true" />
-          Upload document
-          <span className="sr-only"> for {member.name}</span>
-        </button>
-        <button
-          type="button"
-          className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
-        >
-          <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
-          Record training
-          <span className="sr-only"> for {member.name}</span>
-        </button>
-      </div>
+      </section>
     </div>
   )
 }
 
 /* ---------------------------------- parts --------------------------------- */
 
-function FileLink({ file }: { file: StaffDocument }) {
+const cell = 'text-ink-muted px-4 py-3.5 whitespace-nowrap'
+const cellName = 'text-ink px-4 py-3.5 font-semibold whitespace-nowrap'
+const linkBtn = 'text-brand-700 hover:text-brand-800 text-sm font-medium'
+const plainBtn = 'text-ink hover:text-brand-700 text-sm font-medium'
+const brandTag = 'bg-brand-50 text-brand-700'
+
+function DocCard({
+  title,
+  add,
+  member,
+  children,
+}: {
+  title: string
+  add: string
+  member: StaffMember
+  children: React.ReactNode
+}) {
+  const id = `docs-${title.toLowerCase().replace(/[^a-z]+/g, '-')}`
   return (
-    <button
-      type="button"
-      className="text-brand-700 hover:text-brand-800 inline-flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-medium"
-    >
-      <FileText className="size-3.5" strokeWidth={1.9} aria-hidden="true" />
-      View
-      <span className="sr-only"> {file.fileName}</span>
-    </button>
-  )
-}
-
-function NoFile() {
-  return <span className="text-ink-subtle text-sm">No file</span>
-}
-
-function TrainingRow({ record }: { record: TrainingRecord }) {
-  const state = trainingState(record)
-  const done = state === 'complete'
-  const percent =
-    record.requiredHours > 0
-      ? Math.round((record.hours / record.requiredHours) * 100)
-      : 0
-
-  return (
-    <li className="p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-ink min-w-0 text-sm font-medium break-words">
-          {record.name}
-        </p>
-        <span
-          className={cn(
-            chip,
-            state === 'complete'
-              ? tonePill.green
-              : state === 'in-progress'
-                ? tonePill.amber
-                : tonePill.slate,
-            'inline-flex items-center gap-1',
-          )}
+    <section aria-labelledby={id} className="card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 id={id} className="text-ink text-base font-semibold tracking-tight">
+          {title}
+        </h3>
+        <button
+          type="button"
+          className="border-control text-ink hover:bg-sunken inline-flex h-9 items-center gap-2 rounded-lg border px-3.5 text-sm font-medium"
         >
-          {done && <Check className="size-3" strokeWidth={3} aria-hidden="true" />}
-          {state === 'complete'
-            ? 'Complete'
-            : state === 'in-progress'
-              ? 'In progress'
-              : 'Not started'}
-        </span>
+          <Plus className="size-4" strokeWidth={2.2} aria-hidden="true" />
+          {add}
+          <span className="sr-only"> for {member.name}</span>
+        </button>
       </div>
-
-      <p className="text-ink-muted mt-1 text-sm">
-        {done
-          ? `${record.hours} hours · completed ${formatMonth(record.completedAt!)}`
-          : `${record.hours} of ${record.requiredHours} hours`}
-      </p>
-
-      {!done && (
-        <div
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`${record.name} progress`}
-          className="bg-sunken mt-1.5 h-1.5 w-full overflow-hidden rounded-full"
-        >
-          <div
-            className="bg-brand-600 h-full rounded-full"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-      )}
-    </li>
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label={`${title} table`}
+        className="border-line mt-4 overflow-x-auto rounded-lg border"
+      >
+        {children}
+      </div>
+    </section>
   )
+}
+
+function TableHead({ columns }: { columns: string[] }) {
+  return (
+    <thead className="border-line bg-sunken text-ink-muted border-b text-xs">
+      <tr>
+        {columns.map((col) => (
+          <th
+            key={col}
+            scope="col"
+            className={cn('px-4 py-2.5 font-medium', col === 'Actions' && 'text-right')}
+          >
+            {col}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  )
+}
+
+function StatusTag({ tone, children }: { tone: string; children: React.ReactNode }) {
+  return (
+    <span className={cn('inline-flex rounded-md px-2 py-0.5 text-xs font-semibold', tone)}>
+      {children}
+    </span>
+  )
+}
+
+function FileActions({ file }: { file: StaffDocument }) {
+  return (
+    <span className="inline-flex items-center gap-4">
+      <button type="button" className={linkBtn}>
+        View<span className="sr-only"> {file.fileName}</span>
+      </button>
+      <button type="button" className={plainBtn}>
+        Download<span className="sr-only"> {file.fileName}</span>
+      </button>
+    </span>
+  )
+}
+
+function titleCase(text: string): string {
+  return text.replace(/\b([a-z])/g, (c) => c.toUpperCase())
+}
+
+/** The Figma's order: contract, tax form, I-9, payroll, NDA. */
+function employmentOrder(doc: StaffDocument): number {
+  const n = doc.name.toLowerCase()
+  if (n.startsWith('employment contract')) return 0
+  if (n.startsWith('w-4')) return 1
+  if (n.startsWith('i-9')) return 2
+  if (n.startsWith('direct deposit')) return 3
+  return 4
+}
+
+/** What each kind of paperwork's state is called once it is on file. */
+function employmentStatus(doc: StaffDocument): string {
+  const n = doc.name.toLowerCase()
+  if (n.startsWith('w-4')) return 'Current'
+  if (n.startsWith('i-9')) return 'Verified'
+  if (n.startsWith('non-disclosure')) return 'Signed'
+  return 'Active'
+}
+
+function historyTitle(doc: StaffDocument): string {
+  if (doc.category === 'employment') return `${titleCase(doc.name)} uploaded`
+  if (doc.category === 'training') return `${doc.name} uploaded`
+  return /check/i.test(doc.name) ? `${doc.name} results uploaded` : `${doc.name} uploaded`
 }

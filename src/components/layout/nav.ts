@@ -4,7 +4,7 @@ import {
   CalendarDays,
   CreditCard,
   Heart,
-  LayoutDashboard,
+  House,
   MessageSquare,
   Settings,
   SquareCheck,
@@ -28,7 +28,7 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { label: 'Dashboard', to: '/dashboard', icon: House },
   {
     label: 'Care Recipients',
     to: '/care-recipients',
@@ -97,7 +97,7 @@ export const navItems: NavItem[] = [
   },
   { label: 'Messages', to: '/messages', icon: MessageSquare },
   {
-    label: 'Plans & Billing',
+    label: 'Billing',
     to: '/billing',
     icon: CreditCard,
     /*

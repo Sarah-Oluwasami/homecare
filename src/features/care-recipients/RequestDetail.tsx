@@ -1,5 +1,13 @@
 import { Link } from 'react-router-dom'
-import { Check, FileText, Mail, MapPin, Phone, TriangleAlert, X } from 'lucide-react'
+import {
+  Check,
+  FileText,
+  Mail,
+  MapPin,
+  Phone,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import type { CareRequest } from './requests-data'
 import {
   blockers,
@@ -124,13 +132,17 @@ export function RequestDetail({
             }
             onClick={(e) => !approvable && e.preventDefault()}
             className={cn(
-              'inline-flex h-10 min-w-32 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium',
+              'inline-flex h-10 min-w-32 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap',
               approvable
                 ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                 : 'bg-sunken text-ink-subtle border-line cursor-not-allowed border',
             )}
           >
-            <Check className="size-4" strokeWidth={2.4} aria-hidden="true" />
+            <Check
+              className="size-4 shrink-0"
+              strokeWidth={2.4}
+              aria-hidden="true"
+            />
             Approve request
             <span className="sr-only"> {request.ref}</span>
           </button>
@@ -139,29 +151,36 @@ export function RequestDetail({
             aria-disabled={decided}
             onClick={(e) => decided && e.preventDefault()}
             className={cn(
-              'inline-flex h-10 min-w-24 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium',
+              'inline-flex h-10 min-w-24 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap',
               decided
                 ? 'bg-sunken text-ink-subtle border-line cursor-not-allowed border'
                 : 'bg-red-600 text-white hover:bg-red-700',
             )}
           >
-            <X className="size-4" strokeWidth={2.4} aria-hidden="true" />
+            <X
+              className="size-4 shrink-0"
+              strokeWidth={2.4}
+              aria-hidden="true"
+            />
             Reject
             <span className="sr-only"> {request.ref}</span>
           </button>
         </div>
         <button
           type="button"
-          className="border-line text-ink hover:bg-sunken mt-2 h-10 w-full rounded-lg border px-4 text-sm font-medium"
+          className="border-control text-ink hover:bg-sunken mt-2 h-10 w-full rounded-lg border px-4 text-sm font-medium"
         >
           Request more information
           <span className="sr-only"> for {request.ref}</span>
         </button>
 
         {decided && (
-          <p id="request-decision-note" className="text-ink-subtle mt-2 text-xs">
-            This request was already {request.decision}; the decision buttons are
-            inactive.
+          <p
+            id="request-decision-note"
+            className="text-ink-subtle mt-2 text-xs"
+          >
+            This request was already {request.decision}; the decision buttons
+            are inactive.
           </p>
         )}
       </div>
@@ -262,7 +281,9 @@ export function RequestDetail({
             </div>
             <div className="flex flex-wrap justify-between gap-x-3">
               <dt className="text-ink-muted">
-                {fit.allowanceHours === undefined ? 'Estimated cost' : 'List price'}
+                {fit.allowanceHours === undefined
+                  ? 'Estimated cost'
+                  : 'List price'}
               </dt>
               <dd className="text-ink font-medium tabular-nums">
                 {formatMoney(fit.estimatedCost)}
@@ -316,7 +337,11 @@ export function RequestDetail({
                           aria-hidden="true"
                         />
                       )}
-                      <span className={uncovered ? 'text-red-800' : 'text-ink-muted'}>
+                      <span
+                        className={
+                          uncovered ? 'text-red-800' : 'text-ink-muted'
+                        }
+                      >
                         {need.label}
                         {uncovered && ' — not included in this plan'}
                       </span>
@@ -379,9 +404,11 @@ export function RequestDetail({
           </p>
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken mt-2 h-10 w-full rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken mt-2 h-10 w-full rounded-lg border px-4 text-sm font-medium"
           >
-            {request.coordinator ? 'Reassign coordinator' : 'Assign coordinator'}
+            {request.coordinator
+              ? 'Reassign coordinator'
+              : 'Assign coordinator'}
             <span className="sr-only"> for {request.ref}</span>
           </button>
         </Section>

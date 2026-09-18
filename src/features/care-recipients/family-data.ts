@@ -662,6 +662,18 @@ function subscribeLog(listener: () => void): () => void {
   return () => logListeners.delete(listener)
 }
 
+/**
+ * How many times the log has been written to this session.
+ *
+ * Exported so a module that *derives* from the log can cache its derivation
+ * and invalidate it on a write, rather than either recomputing on every read
+ * or — as the families directory did — snapshotting the log at import and
+ * quietly disagreeing with the tab that writes to it.
+ */
+export function logRevision(): number {
+  return logVersion
+}
+
 /** Re-renders the caller when an attempt is recorded. */
 export function useContactLog(): number {
   return useSyncExternalStore(
@@ -709,7 +721,10 @@ export function memberWithRole(
  * breaks a same-day tie — compared numerically, since 'cl10' < 'cl9' as a
  * string.
  */
-function newestFirst(a: CommunicationEntry, b: CommunicationEntry): number {
+export function newestFirst(
+  a: CommunicationEntry,
+  b: CommunicationEntry,
+): number {
   return (
     b.at.localeCompare(a.at) || Number(a.id.slice(2)) - Number(b.id.slice(2))
   )

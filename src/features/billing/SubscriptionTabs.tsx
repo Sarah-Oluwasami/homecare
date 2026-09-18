@@ -334,7 +334,7 @@ export function HoursPanel({ detail }: { detail: SubscriptionDetail }) {
           <button
             key={label}
             type="button"
-            className="border-line text-ink hover:bg-sunken h-10 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken h-10 rounded-lg border px-4 text-sm font-medium"
           >
             {label}
             <span className="sr-only"> on {hours.contract}</span>

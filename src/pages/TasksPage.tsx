@@ -272,7 +272,7 @@ export function TasksPage() {
       <div className="card space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <SelectFilter
-            pill
+            chip
             label="Assigned to"
             value={assignee}
             onChange={(v) => set('who', v)}
@@ -282,14 +282,14 @@ export function TasksPage() {
             ]}
           />
           <SelectFilter
-            pill
+            chip
             label="Priority"
             value={priority}
             onChange={(v) => set('priority', v)}
             options={[{ value: 'all', label: 'All' }, ...priorityOptions]}
           />
           <SelectFilter
-            pill
+            chip
             label="Category"
             value={category}
             onChange={(v) => set('category', v)}
@@ -298,7 +298,7 @@ export function TasksPage() {
           {/* The filter the design has no equivalent of, and the one this list
               most needs: the two halves behave differently. */}
           <SelectFilter
-            pill
+            chip
             label="Source"
             value={source}
             onChange={(v) => set('source', v)}

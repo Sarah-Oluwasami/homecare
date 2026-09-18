@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Clock, Info, ListChecks, Plus, User } from 'lucide-react'
+import { CalendarClock, Clock, Info, ListChecks, Plus, User } from 'lucide-react'
 import {
   allTemplates,
   deleteTemplate,
@@ -202,14 +202,14 @@ export function TaskTemplatesPage() {
           />
         </label>
         <SelectFilter
-          pill
+          chip
           label="Category"
           value={category}
           onChange={(v) => set('category', v)}
           options={[{ value: 'all', label: 'All' }, ...categoryOptions]}
         />
         <SelectFilter
-          pill
+          chip
           label="Status"
           value={status}
           onChange={(v) => set('status', v)}
@@ -269,7 +269,7 @@ function Card({
   onDuplicate: () => void
 }) {
   const raised = tasksFromTemplate(template.id)
-  const assignee = template.suggestedAssignee
+  const latest = raised[0]
 
   return (
     <article className={cn('card flex flex-col p-4', !template.active && 'opacity-70')}>
@@ -300,72 +300,115 @@ function Card({
         {template.description}
       </p>
 
-      <dl className="border-line text-ink-muted mt-3 grid gap-x-4 gap-y-1.5 border-t pt-3 text-sm sm:grid-cols-2">
-        <div className="flex items-center gap-2">
-          <ListChecks className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
-          <dt className="sr-only">Steps</dt>
-          {/* Counted off the list. The design states a number beside a checklist
-              it cannot see. */}
-          <dd>
-            <span className="text-ink font-medium">{template.items.length}</span>{' '}
-            step{template.items.length === 1 ? '' : 's'}
-          </dd>
+      {/* Three lines, in the order somebody reads them: how big it is, when it
+          is normally done, who it normally falls to. */}
+      <dl className="border-line text-ink-muted mt-3 space-y-1.5 border-t pt-3 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="flex items-center gap-2">
+            <ListChecks
+              className="size-4 shrink-0"
+              strokeWidth={1.9}
+              aria-hidden="true"
+            />
+            <dt className="sr-only">Steps</dt>
+            {/* Counted off the list. The design states a number beside a
+                checklist it cannot see. */}
+            <dd>
+              <span className="text-ink font-medium">{template.items.length}</span>{' '}
+              step{template.items.length === 1 ? '' : 's'}
+            </dd>
+          </span>
+          <span aria-hidden="true" className="text-line hidden sm:inline">
+            |
+          </span>
+          <span className="flex items-center gap-2">
+            <Clock className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+            <dt className="sr-only">Estimate</dt>
+            <dd>
+              Est. time:{' '}
+              <span className="text-ink font-medium">
+                {template.estimateMinutes} min
+              </span>
+            </dd>
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Clock className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
-          <dt className="sr-only">Estimate</dt>
-          <dd>
-            <span className="text-ink font-medium">{template.estimateMinutes}</span>{' '}
-            min, as estimated
-          </dd>
-        </div>
-        <div className="flex items-center gap-2 sm:col-span-2">
-          <User className="size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
-          <dt className="sr-only">Usually assigned to</dt>
+
+        <div className="flex items-start gap-2">
+          <CalendarClock
+            className="mt-0.5 size-4 shrink-0"
+            strokeWidth={1.9}
+            aria-hidden="true"
+          />
+          <dt className="sr-only">Usually done</dt>
+          {/* Where the design has a schedule. It is a sentence for a person, and
+              the line says so rather than letting it read as something that
+              fires. */}
           <dd className="min-w-0 break-words">
-            {assignee ? (
-              <>
-                Usually <span className="text-ink font-medium">{assignee}</span>
-              </>
+            Usually: <span className="text-ink font-medium">{template.cadence}</span>
+            <span className="text-ink-subtle block text-xs">
+              A note, not a schedule — nothing raises it on its own.
+            </span>
+          </dd>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <User className="mt-0.5 size-4 shrink-0" strokeWidth={1.9} aria-hidden="true" />
+          <dt className="sr-only">Usually falls to</dt>
+          <dd className="min-w-0 break-words">
+            Falls to:{' '}
+            <span className="text-ink font-medium">
+              {template.suggestedAssignee ?? 'Whoever is on the visit'}
+            </span>
+          </dd>
+        </div>
+      </dl>
+
+      {/* The design's two statistics, in the same place, saying what this app
+          can actually count: how many tasks somebody raised from it, and the
+          last one they raised. Not a monthly yield and not a completion rate —
+          nothing generates tasks on a clock here, and there is no completion
+          history to average. */}
+      <dl className="border-line mt-3 flex flex-wrap items-start justify-between gap-4 border-t pt-3">
+        <div className="min-w-0">
+          <dt className="text-ink-subtle text-[0.65rem] font-semibold tracking-wider uppercase">
+            Tasks raised
+          </dt>
+          <dd className="text-ink mt-0.5 text-sm font-semibold">
+            {raised.length === 0 ? (
+              <span className="text-ink-subtle font-normal">None yet</span>
             ) : (
-              'Whoever is on the visit'
+              <>
+                {raised.length} this session
+                <span className="text-ink-subtle block text-xs font-normal">
+                  {raised.filter((t) => !t.done).length} still open
+                </span>
+              </>
+            )}
+          </dd>
+        </div>
+        <div className="min-w-0 text-right">
+          <dt className="text-ink-subtle text-[0.65rem] font-semibold tracking-wider uppercase">
+            Last raised
+          </dt>
+          <dd className="text-ink mt-0.5 text-sm font-semibold break-words">
+            {latest ? (
+              <Link
+                to={`/tasks/${latest.id}`}
+                className="text-brand-700 hover:text-brand-800"
+              >
+                {latest.assignee ?? 'Nobody'}
+                <span className="text-ink-subtle block text-xs font-normal">
+                  {latest.recipientName ?? 'No client'}
+                </span>
+              </Link>
+            ) : (
+              <span className="text-ink-subtle font-normal">&mdash;</span>
             )}
           </dd>
         </div>
       </dl>
 
-      {/* Guidance, and said as guidance. Nothing reads it and nothing fires. */}
-      <p className="text-ink-subtle mt-2 text-xs break-words">
-        {template.cadence} — nothing raises it automatically.
-      </p>
-
-      <div className="border-line mt-3 border-t pt-3">
-        {raised.length === 0 ? (
-          <p className="text-ink-subtle text-xs">Not used yet this session.</p>
-        ) : (
-          <div className="text-xs">
-            <p className="text-ink-muted">
-              Raised {raised.length} time{raised.length === 1 ? '' : 's'} this
-              session:
-            </p>
-            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-              {raised.slice(0, 4).map((task) => (
-                <li key={task.id}>
-                  <Link
-                    to={`/tasks/${task.id}`}
-                    className="text-brand-700 hover:text-brand-800"
-                  >
-                    {task.assignee ?? 'Nobody'}
-                    {task.recipientName ? ` · ${task.recipientName}` : ''}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="border-line mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
         <button
           type="button"
           onClick={onUse}
@@ -377,21 +420,21 @@ function Card({
         <button
           type="button"
           onClick={onEdit}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium"
+          className="text-brand-700 hover:text-brand-800 inline-flex min-h-11 items-center text-sm font-medium"
         >
           Edit
         </button>
         <button
           type="button"
           onClick={onDuplicate}
-          className="border-line text-ink hover:bg-sunken inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium"
+          className="text-ink hover:text-ink-muted inline-flex min-h-11 items-center text-sm font-medium"
         >
           Duplicate
         </button>
         <button
           type="button"
           onClick={() => setTemplateActive(template.id, !template.active)}
-          className="text-ink-muted hover:text-ink inline-flex min-h-11 items-center px-1 text-sm font-medium"
+          className="text-ink-muted hover:text-ink inline-flex min-h-11 items-center text-sm font-medium"
         >
           {template.active ? 'Retire' : 'Put back in use'}
         </button>
@@ -402,7 +445,7 @@ function Card({
           <button
             type="button"
             onClick={() => deleteTemplate(template.id)}
-            className="inline-flex min-h-11 items-center px-1 text-sm font-medium text-red-700 hover:text-red-800"
+            className="ml-auto inline-flex min-h-11 items-center text-sm font-medium text-red-700 hover:text-red-800"
           >
             Delete
           </button>

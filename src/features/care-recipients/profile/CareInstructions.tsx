@@ -4,22 +4,26 @@ import type { Instruction, InstructionLevel } from '../care-plan-data'
 import { Panel } from '@/components/ui/Panel'
 import { cn } from '@/lib/cn'
 
-const accent: Record<InstructionLevel, string> = {
-  standard: 'bg-line',
-  caution: 'bg-amber-500',
-  critical: 'bg-red-500',
+/** Standard instructions carry no rule; only a level worth flagging gets one. */
+const accent: Partial<Record<InstructionLevel, string>> = {
+  caution: 'bg-caution',
+  critical: 'bg-critical',
 }
 
 const text: Record<InstructionLevel, string> = {
-  standard: 'text-ink-muted',
+  standard: 'text-ink',
+  // The design's caution colour is 3.1:1 on this fill. That is enough for the
+  // rule and the icon, which only have to be visible, and short of the 4.5:1
+  // that text needs — and this is the line that says a resident gets confused
+  // in the late afternoon. amber-700 is the same hue at 4.81:1.
   caution: 'text-amber-700 font-medium',
-  critical: 'text-red-700 font-medium',
+  critical: 'text-critical font-medium',
 }
 
 const iconColour: Record<InstructionLevel, string> = {
   standard: 'text-ink-subtle',
-  caution: 'text-amber-600',
-  critical: 'text-red-600',
+  caution: 'text-caution',
+  critical: 'text-critical',
 }
 
 function InstructionList({
@@ -43,15 +47,20 @@ function InstructionList({
         {items.map((item) => (
           <li
             key={item.id}
-            className="border-line relative flex items-center gap-2.5 overflow-hidden rounded-lg border py-2.5 pr-3 pl-4"
+            // Filled rather than outlined: the design draws these as tinted
+            // blocks, and an outline plus a coloured rule gave the critical
+            // ones two competing left edges.
+            className="bg-sunken relative flex items-center gap-2.5 overflow-hidden rounded-lg py-2.5 pr-3 pl-4"
           >
-            <span
-              aria-hidden="true"
-              className={cn(
-                'absolute inset-y-0 left-0 w-1',
-                accent[item.level],
-              )}
-            />
+            {accent[item.level] && (
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'absolute inset-y-0 left-0 w-1',
+                  accent[item.level],
+                )}
+              />
+            )}
             <Icon
               className={cn('size-4 shrink-0', iconColour[item.level])}
               strokeWidth={1.9}

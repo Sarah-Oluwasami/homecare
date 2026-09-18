@@ -18,6 +18,21 @@
   --color-canvas: oklch(0.985 0.001 285);
   --color-sunken: oklch(0.968 0.002 285);
   --color-line: oklch(0.925 0.003 285);
+  /* The outline of something you can click or type in, as distinct from a rule
+     that only separates two areas. `line` is 1.25:1 against white — fine for a
+     divider, too faint for the boundary that tells you a control is there.
+     This sits at 1.9:1. WCAG 1.4.11 asks 3:1 for a control boundary, which
+     would mean roughly #8e8e90 and an app noticeably heavier than its designs;
+     this is the deliberate middle, not a claim of compliance. */
+  --color-control: oklch(0.795 0.006 285);
+
+  /* Care-instruction levels, sampled from the design rather than picked off
+     the Tailwind ramp — neither sits on a step. Critical is 8.07:1 on the
+     instruction fill; caution is 3.1:1, which clears the 3:1 that a 4px rule
+     and a 16px icon need and does not clear the 4.5:1 that text needs, so a
+     caution's *words* use amber-700 and only its rule and icon use this. */
+  --color-critical: #8e2923;
+  --color-caution: #cc7c2e;
 
   /* Text */
   /* Contrast-checked against --color-canvas (the worst case, since rows hover

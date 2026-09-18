@@ -22,14 +22,15 @@
  */
 import { useSyncExternalStore } from 'react'
 import { NOW, TODAY } from '@/lib/today'
-import { addDays } from '@/features/scheduling/board-data'
+import { addDays, boardOn } from '@/features/scheduling/board-data'
+import type { BoardVisit } from '@/features/scheduling/board-data'
 import { historyVisits } from '@/features/monitoring/history-data'
 import { incidentsFiled } from '@/features/monitoring/incidents-data'
 import { incidentTypeLabels } from '@/features/care-recipients/notes-data'
 import { careRequests, daysWaiting } from '@/features/care-recipients/requests-data'
 import { recipients } from '@/features/care-recipients/data'
 import { credentialStates, staffMembers } from '@/features/caregivers/roster-data'
-import { SIGNED_IN } from '@/lib/session'
+import { SIGNED_IN, SIGNED_IN_ROLE } from '@/lib/session'
 import { priorityOrder as priorityRankOrder } from './settings'
 import type { TaskCategory, TaskPriority } from './settings'
 
@@ -105,8 +106,12 @@ export interface AgencyTask {
   /** Where the work actually gets done. */
   to: string
   done: boolean
+  /** The visit this is about, where the row came off one. */
+  visitId?: string
   /** Written tasks only, all of them. */
   createdBy?: string
+  /** ISO datetime, UTC. */
+  createdAt?: string
   fromTemplate?: string
   description?: string
   checklist?: ChecklistItem[]
@@ -127,6 +132,8 @@ interface WrittenTask {
   recipientId: string | null
   due: string | null
   createdBy: string
+  /** ISO datetime, UTC. When it was written down. */
+  createdAt: string
   done: boolean
   /** Set when the task was raised from a template, so the template can count. */
   fromTemplate?: string
@@ -154,6 +161,7 @@ const written: WrittenTask[] = [
     recipientId: 'cr-001',
     due: TODAY,
     createdBy: 'Mike Chen',
+    createdAt: `${addDays(TODAY, -1)}T09:00:00Z`,
     done: false,
     description:
       'The pack size changed with the July delivery. Check what is left in the hall cupboard before ordering, and put the order through the usual supplier account.',
@@ -190,6 +198,7 @@ const written: WrittenTask[] = [
     recipientId: 'cr-006',
     due: addDays(TODAY, 1),
     createdBy: SIGNED_IN,
+    createdAt: `${addDays(TODAY, -2)}T11:20:00Z`,
     done: false,
   },
   {
@@ -201,6 +210,7 @@ const written: WrittenTask[] = [
     recipientId: 'cr-005',
     due: addDays(TODAY, -1),
     createdBy: 'Dr. Jane Foster',
+    createdAt: `${addDays(TODAY, -4)}T15:45:00Z`,
     done: false,
   },
   {
@@ -212,6 +222,7 @@ const written: WrittenTask[] = [
     recipientId: null,
     due: addDays(TODAY, 6),
     createdBy: SIGNED_IN,
+    createdAt: `${addDays(TODAY, -3)}T08:30:00Z`,
     done: false,
   },
   {
@@ -223,6 +234,7 @@ const written: WrittenTask[] = [
     recipientId: null,
     due: addDays(TODAY, 4),
     createdBy: 'Amara Nwosu',
+    createdAt: `${addDays(TODAY, -6)}T16:10:00Z`,
     done: false,
   },
   {
@@ -234,6 +246,7 @@ const written: WrittenTask[] = [
     recipientId: 'cr-005',
     due: addDays(TODAY, -2),
     createdBy: 'Dr. Jane Foster',
+    createdAt: `${addDays(TODAY, -5)}T10:05:00Z`,
     done: true,
   },
 ]
@@ -276,6 +289,7 @@ export function createTask(task: NewTask): string {
       done: false,
     })),
     createdBy: SIGNED_IN,
+    createdAt: nowStamp(),
     done: false,
     activity: [],
   }
@@ -456,6 +470,7 @@ function derivedTasks(today = TODAY): AgencyTask[] {
       due: visit.date,
       source: 'The visit closed with no record filed against it.',
       to: `/scheduling/visits/${visit.id}/overview`,
+      visitId: visit.id,
       done: false,
     })
   }
@@ -609,6 +624,23 @@ const dayStamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 })
 
+/**
+ * What to call the person a task falls to.
+ *
+ * Read off the roster where they are on it. The two desks that are not — HR and
+ * admin — are named rather than left blank, and anyone else falls back to their
+ * own name rather than to an invented title.
+ */
+export function roleOf(name: string | null): string | null {
+  if (!name) return null
+  const member = staffMembers.find((m) => m.name === name)
+  if (member) return member.title
+  if (name === 'HR Team') return 'Human resources'
+  if (name === 'Admin Support') return 'Administration'
+  if (name === SIGNED_IN) return SIGNED_IN_ROLE
+  return null
+}
+
 /** Everyone a task can be put on: the roster, plus the desks that are not on it. */
 export function assignableNames(): string[] {
   const names = new Set<string>(['HR Team', 'Admin Support', SIGNED_IN])
@@ -650,4 +682,23 @@ export function relatedTasks(task: AgencyTask, today = TODAY): AgencyTask[] {
  */
 export function tasksFromTemplate(templateId: string, today = TODAY): AgencyTask[] {
   return allTasks(today).filter((t) => t.fromTemplate === templateId)
+}
+
+/**
+ * The visit a task is about.
+ *
+ * Two quite different questions with one answer. A worked-out paperwork row
+ * *came off* a visit, so it names it outright. A written task does not come off
+ * anything — but one about a client, due on a day that client is seen, is
+ * almost always about that visit, so the page offers it as the visit it falls
+ * alongside rather than as the visit it belongs to. Where neither holds, there
+ * is no card: a task about ordering supplies is not about a visit, and pointing
+ * it at the nearest one would be a guess with an address on it.
+ */
+export function relatedVisit(task: AgencyTask): BoardVisit | undefined {
+  if (task.visitId) {
+    return boardOn(task.due ?? TODAY).find((v) => v.id === task.visitId)
+  }
+  if (!task.recipientId || !task.due) return undefined
+  return boardOn(task.due).find((v) => v.recipientId === task.recipientId)
 }

@@ -24,10 +24,13 @@ export function FooterPanels() {
                   to={
                     match ? `/care-recipients/${match.id}` : '/care-recipients'
                   }
-                  className="border-line hover:bg-sunken inline-flex min-h-9 items-center gap-2 rounded-full border py-1 pr-3 pl-1 transition-colors"
+                  // Filled, not outlined — the same idiom as the filter chips
+                  // above it. A hairline border on a pill this small read as a
+                  // smudge rather than an edge.
+                  className="bg-sunken hover:bg-line inline-flex min-h-9 items-center gap-2 rounded-full py-1 pr-3 pl-1 transition-colors"
                 >
                   <Avatar name={name} decorative className="size-7" />
-                  <span className="text-ink-muted text-sm">{name}</span>
+                  <span className="text-ink text-sm">{name}</span>
                 </Link>
               </li>
             )

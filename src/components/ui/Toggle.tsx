@@ -10,6 +10,14 @@ interface ToggleProps {
   /** Extra element ids to describe the switch with, e.g. a warning below it. */
   describedBy?: string
   className?: string
+  /** Switch before the label rather than after it. */
+  leading?: boolean
+  /** Ink track when on, for settings lists that are not brand-coloured. */
+  tone?: 'brand' | 'ink'
+  /** A solid grey track when off, instead of the pale sunken one. */
+  solidOff?: boolean
+  /** Label styling override, e.g. weight or a muted colour. */
+  labelClassName?: string
 }
 
 /**
@@ -27,6 +35,10 @@ export function Toggle({
   hint,
   describedBy,
   className,
+  leading = false,
+  tone = 'brand',
+  solidOff = false,
+  labelClassName,
 }: ToggleProps) {
   const id = useId()
   const hintId = `${id}-hint`
@@ -35,11 +47,17 @@ export function Toggle({
     undefined
 
   return (
-    <div className={cn('flex items-start justify-between gap-4', className)}>
-      <div className="min-w-0">
+    <div
+      className={cn(
+        'flex gap-4',
+        leading ? 'items-center gap-3' : 'items-start justify-between',
+        className,
+      )}
+    >
+      <div className={cn('min-w-0', leading && 'order-2')}>
         <label
           htmlFor={id}
-          className="text-ink block cursor-pointer text-sm break-words"
+          className={cn('text-ink block cursor-pointer text-sm break-words', labelClassName)}
         >
           {label}
         </label>
@@ -50,7 +68,7 @@ export function Toggle({
         )}
       </div>
 
-      <span className="relative inline-flex shrink-0 pt-0.5">
+      <span className={cn('relative inline-flex shrink-0', leading ? 'order-1' : 'pt-0.5')}>
         <input
           id={id}
           type="checkbox"
@@ -67,8 +85,12 @@ export function Toggle({
             'block h-6 w-11 cursor-pointer rounded-full border transition-colors',
             'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-600',
             checked
-              ? 'bg-brand-600 border-brand-600'
-              : 'bg-sunken border-line',
+              ? tone === 'ink'
+                ? 'bg-ink border-ink'
+                : 'bg-brand-600 border-brand-600'
+              : tone === 'ink' || solidOff
+                ? 'bg-ink-subtle/50 border-transparent'
+                : 'bg-sunken border-line',
           )}
         >
           {/* Track is 44×24 with a 1px border, so the 20px knob sits 1.5px

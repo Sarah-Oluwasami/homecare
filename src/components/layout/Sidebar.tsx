@@ -14,10 +14,15 @@ interface SidebarProps {
 }
 
 /**
- * A section's sub-navigation. Always rendered, not gated on already being in
- * the section and not hidden behind a disclosure: the whole point of the group
- * is that "Care Plans" is one click from anywhere. Revealing it only once you
- * are inside would reinstate the second click it exists to remove.
+ * A section's sub-navigation, shown only while that section is open.
+ *
+ * It used to render for every section at once, so that "Care Plans" was one
+ * click from anywhere. That is genuinely quicker, and it is not what the design
+ * asks for: it turned an eleven-row rail into a twenty-four-row one, and the
+ * eleven top-level destinations stopped reading as the shape of the product.
+ * Scoping it to the open section keeps every child reachable — which is the
+ * part that matters, since several of them have no other entry point — and
+ * costs one click from outside the section.
  */
 function SubNav({
   items,
@@ -186,7 +191,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   <span className="truncate">{label}</span>
                 </NavLink>
 
-                {children && (
+                {children && inSection && (
                   <SubNav items={children} label={label} onNavigate={onClose} />
                 )}
               </div>
@@ -197,7 +202,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className="shrink-0 p-3">
           <button
             type="button"
-            className="border-line hover:bg-sunken flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors"
+            className="border-control hover:bg-sunken flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors"
           >
             <Avatar name="Sarah Jenkins" decorative className="size-9" />
             <span className="min-w-0">

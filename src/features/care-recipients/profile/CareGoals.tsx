@@ -73,22 +73,22 @@ export function CareGoals({ goals }: { goals: CareGoal[] }) {
     <Panel title="Care Goals" flush>
       {/* Desktop: table. The disclosure button is the only focusable cell, so
           the region doesn't need its own tabIndex. */}
-      <div className="hidden overflow-x-auto lg:block">
+      <div className="hidden overflow-x-auto px-4 lg:block">
         {/* 2xl (672px) fits the ~718px content box at 1024 — 3xl would scroll
             the Details column, the only control that reveals clinical intent */}
         <table className="w-full min-w-2xl text-left text-sm">
-          <thead className="border-line bg-sunken text-ink-muted border-y text-xs">
+          <thead className="border-line bg-sunken text-ink-muted border-b text-xs">
             <tr>
-              <th scope="col" className="px-4 py-2.5 font-semibold tracking-wide uppercase">
+              <th scope="col" className="py-2.5 pr-4 font-semibold tracking-wide uppercase">
                 Goal &amp; Clinical Intent
               </th>
-              <th scope="col" className="w-56 px-4 py-2.5 font-semibold tracking-wide uppercase">
+              <th scope="col" className="w-56 py-2.5 pr-4 font-semibold tracking-wide uppercase">
                 Progress
               </th>
-              <th scope="col" className="w-40 px-4 py-2.5 font-semibold tracking-wide uppercase">
+              <th scope="col" className="w-40 py-2.5 pr-4 font-semibold tracking-wide uppercase">
                 Status
               </th>
-              <th scope="col" className="w-20 px-4 py-2.5 text-right font-semibold tracking-wide uppercase">
+              <th scope="col" className="w-20 py-2.5 text-right font-semibold tracking-wide uppercase">
                 Details
               </th>
             </tr>
@@ -104,21 +104,23 @@ export function CareGoals({ goals }: { goals: CareGoal[] }) {
                 // Fragment rather than a bare one.
                 <Fragment key={goal.id}>
                   <tr className={cn(i > 0 && 'border-line border-t')}>
-                    <th scope="row" className="px-4 py-3 font-normal">
-                      <span className="flex items-baseline gap-3">
-                        <span className="text-brand-600 shrink-0 text-xs font-semibold tabular-nums">
+                    <th scope="row" className="py-3 pr-4 font-normal">
+                      <span className="flex items-center gap-3">
+                        {/* The goal's place in the plan, given its own chip so
+                            the column starts on something countable. */}
+                        <span className="bg-brand-50 text-brand-700 grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold tabular-nums">
                           {i + 1}
                         </span>
-                        <span className="text-ink font-medium">{goal.title}</span>
+                        <span className="text-ink font-semibold">{goal.title}</span>
                       </span>
                     </th>
-                    <td className="px-4 py-3">
+                    <td className="py-3 pr-4">
                       <GoalProgress goal={goal} />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="py-3 pr-4">
                       <GoalStatusBadge status={goal.status} />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="py-3 text-right">
                       <button
                         type="button"
                         onClick={() => toggle(goal.id)}
@@ -141,7 +143,7 @@ export function CareGoals({ goals }: { goals: CareGoal[] }) {
 
                   {open && (
                     <tr id={`goal-detail-${goal.id}`}>
-                      <td colSpan={4} className="px-4 pt-0 pb-3">
+                      <td colSpan={4} className="pt-0 pb-3">
                         <GoalDetail goal={goal} />
                       </td>
                     </tr>
@@ -154,14 +156,14 @@ export function CareGoals({ goals }: { goals: CareGoal[] }) {
       </div>
 
       {/* Mobile: the same rows as a disclosure list */}
-      <ul className="divide-line border-line divide-y border-t lg:hidden">
+      <ul className="divide-line divide-y px-4 lg:hidden">
         {goals.map((goal, i) => {
           const open = expanded === goal.id
           return (
-            <li key={goal.id} className="p-4">
+            <li key={goal.id} className="py-4">
               <div className="flex items-start justify-between gap-3">
-                <h3 className="text-ink flex min-w-0 items-baseline gap-2.5 text-sm font-medium">
-                  <span className="text-brand-600 shrink-0 text-xs font-semibold tabular-nums">
+                <h3 className="text-ink flex min-w-0 items-center gap-2.5 text-sm font-semibold">
+                  <span className="bg-brand-50 text-brand-700 grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold tabular-nums">
                     {i + 1}
                   </span>
                   <span className="break-words">{goal.title}</span>

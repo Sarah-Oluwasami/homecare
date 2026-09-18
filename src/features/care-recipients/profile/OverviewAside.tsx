@@ -7,11 +7,16 @@ import { cn } from '@/lib/cn'
 export function QuickStatsPanel({ profile }: { profile: RecipientProfile }) {
   return (
     <Panel title="Quick Stats (This Month)">
-      <dl className="divide-line divide-y text-sm">
+      {/*
+        * No rules between the rows. Five label/value pairs already read as a
+        * list from the alignment alone, and a line under each one made the
+        * panel look like a table that had lost its headers.
+        */}
+      <dl className="text-sm">
         {profile.quickStats.map(({ label, value, tone }) => (
           <div
             key={label}
-            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5 first:pt-0 last:pb-0"
+            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2 first:pt-0 last:pb-0"
           >
             <dt className="text-ink-muted shrink-0">{label}</dt>
             <dd
@@ -57,9 +62,15 @@ export function MedicationsPanel({ profile }: { profile: RecipientProfile }) {
           No active medications recorded.
         </p>
       ) : (
-        <ul className="divide-line border-line divide-y border-t">
+        /*
+         * Inset rules, and none under the header. The padding sits on the list
+         * rather than on each row, so the lines stop where the text stops —
+         * full-bleed rules cut the card into bands and made a four-item list
+         * look like a table.
+         */
+        <ul className="divide-line divide-y px-4">
           {meds.map((m) => (
-            <li key={m.id} className="px-4 py-2.5">
+            <li key={m.id} className="py-2.5">
               <p className="text-ink text-sm font-semibold">{m.name}</p>
               <p className="text-ink-subtle mt-0.5 text-xs">{m.schedule}</p>
             </li>
@@ -110,18 +121,21 @@ export function UpcomingVisitsPanel({ profile }: { profile: RecipientProfile }) 
       {upcoming.length === 0 ? (
         <p className="text-ink-subtle text-sm">No upcoming visits scheduled.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul>
           {upcoming.map((v) => (
-            <li key={v.id} className="flex gap-3">
+            <li key={v.id} className="group flex gap-3">
+              {/* Dot and the line beneath it are one column, so the thread
+                  runs between entries and stops at the last one. */}
               <span
                 aria-hidden="true"
-                className="bg-brand-600 mt-1.5 size-2 shrink-0 rounded-full"
-              />
-              <div className="min-w-0">
+                className="flex shrink-0 flex-col items-center"
+              >
+                <span className="bg-brand-600 mt-1.5 size-2 rounded-full" />
+                <span className="bg-line w-px flex-1 group-last:hidden" />
+              </span>
+              <div className="min-w-0 pb-4 group-last:pb-0">
                 <p className="text-ink text-sm font-semibold">{v.when}</p>
-                <p className="text-ink-muted mt-0.5 text-sm break-words">
-                  {v.title}
-                </p>
+                <p className="text-ink mt-0.5 text-sm break-words">{v.title}</p>
                 <p className="text-ink-subtle mt-0.5 text-xs">{v.caregiver}</p>
               </div>
             </li>

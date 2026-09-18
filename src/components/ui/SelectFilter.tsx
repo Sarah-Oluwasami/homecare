@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 export interface SelectOption {
@@ -13,10 +14,13 @@ interface SelectFilterProps {
   options: SelectOption[]
   className?: string
   /**
-   * Rounded-full chip rather than the default rounded rectangle. Opt-in, so the
-   * dozen screens already using the square shape are left alone.
+   * Compact chip form: a shorter control on pointer-sized screens. Opt-in, so
+   * the dozen screens using the default height are left alone. Still 44px tall
+   * below `sm`, where a finger is the pointer.
    */
-  pill?: boolean
+  chip?: boolean
+  /** Leading glyph, where the screen's other controls carry one. */
+  icon?: LucideIcon
 }
 
 /**
@@ -29,26 +33,41 @@ export function SelectFilter({
   onChange,
   options,
   className,
-  pill = false,
+  chip = false,
+  icon: Icon,
 }: SelectFilterProps) {
   return (
     <div className={cn('relative', className)}>
       <label
         className={cn(
-          `border-line hover:bg-sunken focus-within:border-brand-400 flex min-h-11 items-center gap-1.5 border text-sm
+          `border-control hover:bg-sunken focus-within:border-brand-400 flex min-h-11 items-center gap-1.5 border pl-3 text-sm
             has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-600`,
-          pill ? 'rounded-full pl-4' : 'rounded-lg pl-3',
+          'rounded-lg',
+          chip && 'sm:min-h-9.5',
         )}
       >
+        {Icon && (
+          <Icon
+            className="text-ink-subtle size-4 shrink-0"
+            strokeWidth={1.8}
+            aria-hidden="true"
+          />
+        )}
         <span className="text-ink-muted shrink-0">{label}:</span>
         {/* grow + pr-8 puts the select's own hit area under the chevron —
             clicking a label only focuses a select, it doesn't open it. */}
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          /*
+           * `field-sizing: content` makes the control as wide as the option
+           * showing rather than as wide as its longest option — "Status: All"
+           * stops reserving room for "Late Arrival". Chromium-only for now;
+           * everywhere else it falls back to the old behaviour, which is wider
+           * but never broken.
+           */
           className={cn(
-            'text-ink h-full min-w-0 grow appearance-none bg-transparent font-medium',
-            pill ? 'pr-9' : 'pr-8',
+            'text-ink h-full min-w-0 grow appearance-none bg-transparent pr-8 font-medium [field-sizing:content]',
           )}
         >
           {options.map((o) => (
@@ -60,10 +79,7 @@ export function SelectFilter({
       </label>
       <ChevronDown
         aria-hidden="true"
-        className={cn(
-          'text-ink-subtle pointer-events-none absolute top-1/2 size-4 -translate-y-1/2',
-          pill ? 'right-3.5' : 'right-3',
-        )}
+        className="text-ink-subtle pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
       />
     </div>
   )

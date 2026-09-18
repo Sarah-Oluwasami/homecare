@@ -66,7 +66,7 @@ export function ProfileHeader({ profile, actions }: ProfileHeaderProps) {
               'inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-colors',
               primary
                 ? 'bg-brand-600 hover:bg-brand-700 text-white'
-                : 'border-line text-ink hover:bg-sunken border',
+                : 'border-control text-ink hover:bg-sunken border',
             )}
           >
             <Icon className="size-4" strokeWidth={1.9} />

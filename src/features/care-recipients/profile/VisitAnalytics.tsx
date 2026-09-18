@@ -1,4 +1,4 @@
-import { ClipboardList, UserRound } from 'lucide-react'
+import { ClipboardList, UserRound, UserRoundCheck } from 'lucide-react'
 import type { VisitHistory } from '../visits-data'
 import { SectionHeading } from '@/components/ui/SectionHeading'
 import { toneChip } from '@/lib/tone'
@@ -83,9 +83,12 @@ function FactCard({
   tone: 'blue' | 'green'
 }) {
   return (
-    <article className="card flex items-start justify-between gap-3 p-4">
+    // The chip sits against the middle of the card, not level with the label —
+    // top-aligned it read as a badge on the heading rather than a mark for the
+    // figure underneath it.
+    <article className="card flex items-center justify-between gap-3 p-4">
       <div className="min-w-0">
-        <h3 className="text-ink-subtle text-xs font-semibold tracking-wider uppercase">
+        <h3 className="text-ink-muted text-xs font-semibold tracking-wider uppercase">
           {label}
         </h3>
         <p className="text-ink mt-2 text-xl font-bold tracking-tight break-words">
@@ -96,11 +99,11 @@ function FactCard({
 
       <span
         className={cn(
-          'grid size-9 shrink-0 place-items-center rounded-lg',
+          'grid size-11 shrink-0 place-items-center rounded-xl',
           toneChip[tone],
         )}
       >
-        <Icon className="size-4.5" strokeWidth={1.9} aria-hidden="true" />
+        <Icon className="size-5" strokeWidth={1.9} aria-hidden="true" />
       </span>
     </article>
   )
@@ -124,7 +127,9 @@ export function VisitAnalytics({ history }: { history: VisitHistory }) {
           label="Primary Caregiver Coverage"
           value={history.coverage.percent}
           detail={history.coverage.detail}
-          icon={UserRound}
+          // A person with a tick: the card is about the share of visits one
+          // caregiver covered, not about a caregiver.
+          icon={UserRoundCheck}
           tone="green"
         />
       </div>

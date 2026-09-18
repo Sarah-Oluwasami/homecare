@@ -75,7 +75,7 @@ export function CarePlansPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium"
           >
             <Archive className="size-4" strokeWidth={1.9} aria-hidden="true" />
             Archived plans

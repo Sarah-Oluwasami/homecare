@@ -31,7 +31,7 @@ export function Topbar({ navOpen, onMenuClick }: TopbarProps) {
             aria-label="Search operations"
             placeholder="Search operations..."
             // pr only reserves room for the ⌘K hint where that hint is visible
-            className="border-line bg-sunken text-ink placeholder:text-ink-subtle focus:bg-surface focus:border-brand-400 h-11 w-full rounded-lg border pr-3 pl-9 text-sm sm:h-9.5 sm:pr-12"
+            className="border-control bg-sunken text-ink placeholder:text-ink-subtle focus:bg-surface focus:border-brand-400 h-11 w-full rounded-lg border pr-3 pl-9 text-sm sm:h-9.5 sm:pr-12"
           />
           <kbd className="border-line text-ink-subtle pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded border px-1.5 py-0.5 text-[0.65rem] font-medium sm:block">
             ⌘K
@@ -41,7 +41,11 @@ export function Topbar({ navOpen, onMenuClick }: TopbarProps) {
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <button
             type="button"
-            className="bg-brand-600 hover:bg-brand-700 inline-flex h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-white transition-colors sm:h-9.5 sm:px-3.5"
+            // Tinted, not solid. A filled indigo button here competed with
+            // the primary action on every page underneath it — on the
+            // directory that put two solid indigo buttons in one sightline,
+            // and the one in the chrome is not the more important of the two.
+            className="bg-brand-50 text-brand-700 hover:bg-brand-100 inline-flex h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors sm:h-9.5 sm:px-3.5"
           >
             <Plus className="size-4" strokeWidth={2.2} />
             <span className="hidden sm:inline">Quick Action</span>
@@ -50,11 +54,18 @@ export function Topbar({ navOpen, onMenuClick }: TopbarProps) {
           <button
             type="button"
             aria-label="Notifications"
-            className="text-ink-muted hover:bg-sunken border-line relative grid size-11 place-items-center rounded-full border sm:size-9.5"
+            className="text-ink-muted hover:bg-sunken border-control relative grid size-11 place-items-center rounded-full border sm:size-9.5"
           >
             <Bell className="size-4.5" strokeWidth={1.8} />
             <span className="absolute top-2 right-2.5 size-1.5 rounded-full bg-red-500 ring-2 ring-white" />
           </button>
+
+          {/* Separates the account from the actions beside it, the way the
+              design does. Decorative, so `line` rather than `control`. */}
+          <span
+            aria-hidden="true"
+            className="bg-line hidden h-6 w-px shrink-0 sm:block"
+          />
 
           <Avatar
             name="Sarah Jenkins"

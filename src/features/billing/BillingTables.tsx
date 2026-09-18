@@ -601,7 +601,7 @@ export function RenewalsTimeline({
                         </Link>
                         <button
                           type="button"
-                          className="border-line text-ink hover:bg-sunken h-9 min-w-28 flex-1 rounded-lg border px-3 text-xs font-medium"
+                          className="border-control text-ink hover:bg-sunken h-9 min-w-28 flex-1 rounded-lg border px-3 text-xs font-medium"
                         >
                           Remind
                           <span className="sr-only">

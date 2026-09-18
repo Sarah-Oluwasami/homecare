@@ -31,7 +31,7 @@ function pageItems(page: number, pageCount: number): (number | 'gap')[] {
 }
 
 const stepClasses =
-  'border-line text-ink-muted h-9 rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-sunken aria-disabled:pointer-events-none aria-disabled:opacity-40'
+  'border-control text-ink-muted h-9 rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-sunken aria-disabled:pointer-events-none aria-disabled:opacity-40'
 
 export function Pagination({
   page,
@@ -85,8 +85,11 @@ export function Pagination({
                 aria-label={`Page ${item}`}
                 className={cn(
                   'grid size-9 place-items-center rounded-lg text-sm font-medium tabular-nums transition-colors',
+                  // Tinted, not solid. A filled indigo square made the page
+                  // you are already on the loudest thing in the table footer,
+                  // and it is the one place you cannot navigate to.
                   item === page
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-brand-50 text-brand-700'
                     : 'text-ink-muted hover:bg-sunken',
                 )}
               >

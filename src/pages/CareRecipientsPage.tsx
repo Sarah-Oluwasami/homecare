@@ -96,7 +96,7 @@ export function CareRecipientsPage() {
         <div className="flex flex-col gap-2 min-[420px]:flex-row">
           <button
             type="button"
-            className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors"
+            className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors"
           >
             <Download className="size-4" strokeWidth={1.9} />
             Export

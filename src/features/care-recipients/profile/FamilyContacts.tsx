@@ -142,7 +142,7 @@ function ContactCard({
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button
           type="button"
-          className="border-line text-ink hover:bg-sunken inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border text-sm font-medium transition-colors"
+          className="border-control text-ink hover:bg-sunken inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border text-sm font-medium transition-colors"
         >
           <MessageSquare className="size-4" strokeWidth={1.9} aria-hidden="true" />
           Message<span className="sr-only"> {member.name}</span>

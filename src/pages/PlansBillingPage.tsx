@@ -331,7 +331,7 @@ export function PlansBillingPage() {
             </button>
             <button
               type="button"
-              className="border-line text-ink hover:bg-sunken h-10 rounded-lg border px-4 text-sm font-medium"
+              className="border-control text-ink hover:bg-sunken h-10 rounded-lg border px-4 text-sm font-medium"
             >
               Adjust hours
             </button>
